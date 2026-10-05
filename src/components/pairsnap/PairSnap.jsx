@@ -111,8 +111,8 @@ export default function PairSnap({ cam, cap, onExit }) {
   const patchEditor = useCallback(p => setEditorState(prev => ({ ...prev, ...p })), []);
 
   const header = {
-    1: { next: { label: 'Select References', onClick: () => setStep(2), disabled: !cam.isReady } },
-    2: { next: { label: '', onClick: () => { setStep(3); cam.request(); }, disabled: selectedIds.length !== PS_SHOTS } },
+    1: {},
+    2: {},
     3: { counter: `${cap.photoUrls.length}/${PS_SHOTS}`,
          next: cap.photoUrls.length === PS_SHOTS && !running ? { label: 'Edit & Download', onClick: goEdit } : null },
     4: {},
