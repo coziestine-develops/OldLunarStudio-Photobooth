@@ -29,8 +29,8 @@ export default function PoseSelect({ selectedIds, onChange, total = 4, onContinu
     <div className="ps-select">
       <div className="ps-sel-head">
         <h2>Choose your {total} references</h2>
-        <p>Pick the poses you want to recreate together. They’ll appear in the order you choose.</p>
-        <p className="ps-sel-sub">Photos aren’t mine — credits to the original owners.</p>
+        <p>Choose your favorite poses and recreate them together—in the order you select!</p>
+        <p className="ps-sel-sub">Turn Moments Into Memories. 📸</p>
       </div>
 
       <div className="ps-cats" role="tablist" aria-label="Pose categories">
@@ -68,8 +68,7 @@ export default function PoseSelect({ selectedIds, onChange, total = 4, onContinu
       )}
 
       <p className="ps-credit">
-        Reference photos are for pose inspiration only. I don’t own them — all credit goes to the original creators and owners. If you’re the owner and want a photo removed, please get in touch.
-      </p>
+Reference photos are used for pose and creative inspiration only. Ownership and rights remain with their respective creators and copyright holders. For removal or credit requests, please contact the developer.      </p>
 
       <div className="ps-bar" role="region" aria-label="Selected references">
         <p className={`ps-note ${note ? 'is-on' : ''}`} role="status" aria-live="polite">{note}</p>
@@ -88,7 +87,7 @@ export default function PoseSelect({ selectedIds, onChange, total = 4, onContinu
           })}
         </div>
         <button type="button" className="pb-btn pb-btn--primary ps-bar-go" disabled={!ready} onClick={onContinue}>
-          {ready ? <Check size={18} aria-hidden="true" /> : null}Continue<ArrowRight size={18} aria-hidden="true" />
+            Continue <ArrowRight size={18} aria-hidden="true" />
         </button>
       </div>
     </div>
