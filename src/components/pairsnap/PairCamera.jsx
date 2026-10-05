@@ -45,7 +45,7 @@ export default function PairCamera({
 
           {live && curPose && !allDone && (
             <div className="ps-ref" aria-label={`${curPose.title}, ${curIdx + 1}/${total}`}>
-              <div className="ps-ref-hd"><small>REPLICATE</small><strong>{curIdx + 1}/{total}</strong></div>
+              <div className="ps-ref-hd"><small>PAIR IT</small><strong>{curIdx + 1}/{total}</strong></div>
               <div className="ps-ref-frame"><img src={curPose.image} alt="" /></div>
             </div>
           )}
