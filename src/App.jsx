@@ -250,8 +250,8 @@ export default function App() {
           backDisabled={cap.isCapturing}
           counter={sub === SUB.CAMERA && headerStep === 2 ? `${cap.photoUrls.length}/${photoCount}` : null}
           next={
-            sub === SUB.CAMERA && camStep === 1 ? { label: 'Photobooth', onClick: () => setCamStep(2), disabled: !cam.isReady } :
-            sub === SUB.SESSION                 ? { label: 'Final Output', onClick: handleContinueToEditor } :
+            sub === SUB.CAMERA && camStep === 1 ? { label: '', onClick: () => setCamStep(2), disabled: !cam.isReady } :
+            sub === SUB.SESSION                 ? { label: '', onClick: handleContinueToEditor } :
             null
           }
         />
