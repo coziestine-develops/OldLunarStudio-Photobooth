@@ -29,9 +29,10 @@ export default function PhotoboothHeader({ step = 1, onBack, backDisabled = fals
           {counter ? (
             <div className="pb-hd-count" aria-label={`${counter} photos taken`}>{counter}</div>
           ) : next ? (
-            <button type="button" className="pb-hd-next" onClick={next.onClick} disabled={next.disabled} aria-label={`Next: ${next.label}`}>
-              <span className="pb-hd-next-k">Next</span>
-              <span className="pb-hd-next-v">{next.label}<ArrowRight size={14} strokeWidth={2.2} aria-hidden="true" /></span>
+            <button type="button" className="pb-hd-next" onClick={next.onClick} disabled={next.disabled} aria-label={next.label ? `Next: ${next.label}` : 'Next'}>
+              {next.label
+                ? <><span className="pb-hd-next-k">Next</span><span className="pb-hd-next-v">{next.label}<ArrowRight size={14} strokeWidth={2.2} aria-hidden="true" /></span></>
+                : <span className="pb-hd-next-v">Next<ArrowRight size={14} strokeWidth={2.2} aria-hidden="true" /></span>}
             </button>
           ) : null}
         </div>
