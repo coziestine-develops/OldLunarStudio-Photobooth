@@ -28,6 +28,7 @@ export function useCamera() {
   const [devices, setDevices]       = useState([]);
   const [deviceId, setDeviceId]     = useState('');
   const [resolution, setResolution] = useState(null);   // { width, height }
+  const [facing, setFacing]         = useState('');     // 'user' (front) | 'environment' (back) | '' (unknown, e.g. desktop webcam)
 
   const attach = useCallback(stream => {
     streamRef.current = stream;
@@ -41,6 +42,14 @@ export function useCamera() {
     };
     const s = read();
     if (s.deviceId) setDeviceId(s.deviceId);
+    // Which way does this camera face? Back cameras must never be mirrored.
+    const label = track?.label || '';
+    setFacing(
+      s.facingMode === 'user' || s.facingMode === 'environment' ? s.facingMode
+      : /back|rear|environment/i.test(label) ? 'environment'
+      : /front|user|facetime|selfie/i.test(label) ? 'user'
+      : ''
+    );
     // Came up below Full HD? Ask the track for it again (some cameras only switch after start).
     if (track && Math.max(s.width || 0, s.height || 0) < 1900 && track.applyConstraints) {
       track.applyConstraints({ width: { ideal: FHD.width }, height: { ideal: FHD.height }, frameRate: { ideal: 30 } })
@@ -161,7 +170,7 @@ export function useCamera() {
   // Phones/tablets: the front camera is shown (and saved) mirrored, like a real mirror / selfie view.
   // Desktop webcams are left untouched. The flag lives on the <video> so CSS and grabFrame() both read it.
   const isTouch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
-  const mirrorActive = mirror && isTouch && !deviceId.startsWith?.('__rear');
+  const mirrorActive = mirror && isTouch && facing === 'user';   // front camera on a phone/tablet only; back camera is never mirrored
   useEffect(() => {
     const v = videoRef.current;
     if (v) v.dataset.mirror = mirrorActive ? '1' : '0';
@@ -191,7 +200,7 @@ export function useCamera() {
   useEffect(() => () => releaseStream(), []);
 
   return {
-    videoRef, state, error, mirror, mirrorActive,
+    videoRef, state, error, mirror, mirrorActive, facing,
     devices, deviceId, resolution,
     request, stop, toggleMirror, selectDevice, reattach,
     isReady: state === CAM.GRANTED,
