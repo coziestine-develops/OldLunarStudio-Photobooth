@@ -19,7 +19,6 @@ const ICONS = {
   frame:   <><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><rect x="8" y="8" width="8" height="8" rx="1.5"/></>,
   sticker: <><path d="m12 3.5 2.4 5 5.4.7-4 3.7 1 5.4L12 15.6 7.2 18.3l1-5.4-4-3.7 5.4-.7L12 3.5Z"/></>,
   retake:  <><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></>,
-  mirror:  <><path d="M12 3v18M8 7 3 12l5 5V7ZM16 7l5 5-5 5V7Z"/></>,
   keyboard:<><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M7.5 14h9"/></>,
   mobile:  <><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></>,
   left:    <><path d="m15 5-7 7 7 7"/></>,

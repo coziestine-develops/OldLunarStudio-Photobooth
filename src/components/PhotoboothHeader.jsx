@@ -11,7 +11,7 @@ export const STEP_TITLES = ['Camera Settings', 'Photobooth', 'Review', 'Final Ou
  * @param next     { label, onClick, disabled } — shows "NEXT <label> →" top-right
  * @param counter  e.g. "2/4" while capturing (replaces `next`)
  */
-export default function PhotoboothHeader({ step = 1, onBack, backDisabled = false, next = null, counter = null }) {
+export default function PhotoboothHeader({ step = 1, onBack, backDisabled = false, next = null, counter = null, titles = STEP_TITLES }) {
   return (
     <header className="pb-hd">
       <div className="pb-hd-in">
@@ -22,7 +22,7 @@ export default function PhotoboothHeader({ step = 1, onBack, backDisabled = fals
 
         <div className="pb-hd-mid">
           <span className="pb-hd-step">Step {step}</span>
-          <h1>{STEP_TITLES[step - 1]}</h1>
+          <h1>{titles[step - 1]}</h1>
         </div>
 
         <div className="pb-hd-right">
@@ -38,7 +38,7 @@ export default function PhotoboothHeader({ step = 1, onBack, backDisabled = fals
       </div>
 
       <div className="pb-prog" role="progressbar" aria-valuemin={1} aria-valuemax={4} aria-valuenow={step} aria-label={`Step ${step} of 4`}>
-        {STEP_TITLES.map((t, i) => <i key={t} className={i < step ? 'is-on' : ''} />)}
+        {titles.map((t, i) => <i key={t} className={i < step ? 'is-on' : ''} />)}
       </div>
     </header>
   );

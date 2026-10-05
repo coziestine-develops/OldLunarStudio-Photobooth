@@ -1,9 +1,6 @@
 /**
  * OldLuna — Canvas / Capture Utilities
  *
- * ORIENTATION POLICY:
- *   mirror=false → draw as-is (no transform)
- *   mirror=true  → scaleX(-1) on canvas so export matches the mirrored preview
  */
 import { FILTER_MAP } from './filters.js';
 
@@ -21,40 +18,39 @@ export async function waitForFrame(videoEl, timeoutMs = 3000) {
   }
 }
 
-/** Resolve on the next presented video frame (or after a short timeout) so we never grab a stale one. */
-function nextVideoFrame(videoEl, timeoutMs = 400) {
-  return new Promise(resolve => {
-    if (!videoEl.requestVideoFrameCallback) return resolve();
-    let done = false;
-    const fin = () => { if (!done) { done = true; resolve(); } };
-    videoEl.requestVideoFrameCallback(fin);
-    setTimeout(fin, timeoutMs);
-  });
+/** True when the <video> has a decoded frame and real dimensions. */
+export function isVideoReady(videoEl) {
+  return !!videoEl && videoEl.readyState >= 2 && videoEl.videoWidth > 0 && videoEl.videoHeight > 0;
 }
 
-export async function captureFrame(videoEl, filterId = 'normal', mirror = false) {
-  await waitForFrame(videoEl);
-  await nextVideoFrame(videoEl);
-  const vw = videoEl.videoWidth;
-  const vh = videoEl.videoHeight;
-  if (!vw || !vh) throw new Error('Camera is not ready yet');
-  const SCALE = 1;
-  const w = vw * SCALE, h = vh * SCALE;
-
+/**
+ * Grab the CURRENT video frame onto a canvas — fully synchronous, no awaits, no timers.
+ * This is what the countdown calls the instant it reaches zero. Encoding to a file
+ * happens afterwards (canvasToBlob), so it can never delay the shot.
+ */
+export function grabFrame(videoEl) {
+  if (!isVideoReady(videoEl)) throw new Error('Camera is not ready yet');
+  const w = videoEl.videoWidth, h = videoEl.videoHeight;
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
-
-  if (mirror) { ctx.translate(w, 0); ctx.scale(-1, 1); }
   ctx.drawImage(videoEl, 0, 0, w, h);
-  if (mirror) ctx.setTransform(1,0,0,1,0,0);
+  return canvas;
+}
 
-  // Originals are saved untouched ('normal' = no filter); filters are applied in the editor.
-  const filter = FILTER_MAP[filterId];
-  if (filter) filter.apply(ctx, w, h);
-
+export function canvasToBlob(canvas) {
   return new Promise((resolve, reject) =>
     canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Could not encode photo'))), 'image/png'));
+}
+
+/** Convenience wrapper (kept for other callers): wait until ready, grab, encode. */
+export async function captureFrame(videoEl, filterId = 'normal') {
+  await waitForFrame(videoEl);
+  const canvas = grabFrame(videoEl);
+  // Originals are saved untouched ('normal' = no filter); filters are applied in the editor.
+  const filter = FILTER_MAP[filterId];
+  if (filter) filter.apply(canvas.getContext('2d'), canvas.width, canvas.height);
+  return canvasToBlob(canvas);
 }
 
 /** Convert a Blob to a data URL. */
@@ -100,7 +96,7 @@ export function applyAdjustments(ctx, w, h, { brightness=100, contrast=100, satu
 }
 
 /** Generate a timestamped PNG filename. */
-export function pngFilename(prefix='oldluna-photostrip') {
+export function pngFilename(prefix='oldlunar studio-photostrip') {
   const n=new Date();
   const pad=v=>String(v).padStart(2,'0');
   return `${prefix}-${n.getFullYear()}${pad(n.getMonth()+1)}${pad(n.getDate())}-${pad(n.getHours())}${pad(n.getMinutes())}${pad(n.getSeconds())}.png`;

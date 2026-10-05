@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Camera, ChevronDown, FlipHorizontal2, Lock, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRight, Camera, ChevronDown, Lock, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import { CS } from '../hooks/useCapture.js';
 import { CAM } from '../hooks/useCamera.js';
 import { playClick } from '../utils/sounds.js';
@@ -7,7 +7,7 @@ import Countdown from './Countdown.jsx';
 import './camera.css';
 
 /* ── Viewfinder: the live camera. The video always fills the container (object-fit: cover). ── */
-function Viewfinder({ videoRef, camState, error, onAllow, mirror, showCrop, resolution, soundEnabled, onSoundToggle, children }) {
+function Viewfinder({ videoRef, camState, error, onAllow, showCrop, resolution, soundEnabled, onSoundToggle, children }) {
   const boxRef = useRef(null);
   const [full, setFull] = useState(false);
 
@@ -52,27 +52,9 @@ function Viewfinder({ videoRef, camState, error, onAllow, mirror, showCrop, reso
   return (
     <div className="cam-vf" ref={boxRef} data-live={isLive}>
       <video ref={videoRef} className="cam-video" data-live={isLive} autoPlay playsInline muted
-             aria-label="Live camera preview" style={{ transform: mirror ? 'scaleX(-1)' : 'none' }} />
+             aria-label="Live camera preview" />
       {isLive && showCrop && <div className="cam-crop" aria-hidden="true" />}
 
-      <div className="cam-vf-hd">
-        <span className="cam-chip">
-          <span className={`cam-dot ${isLive ? 'is-live' : ''}`} aria-hidden="true" />
-          Camera Preview
-          {isLive && quality && <em className="cam-res">{quality}</em>}
-        </span>
-        {isLive && (
-          <div className="cam-vf-tools">
-            <button type="button" className="cam-tool" onClick={onSoundToggle} aria-pressed={soundEnabled}
-                    aria-label={soundEnabled ? 'Turn sound off' : 'Turn sound on'}>
-              {soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
-            </button>
-            <button type="button" className="cam-tool cam-tool--text" onClick={toggleFull} aria-label={full ? 'Exit fullscreen' : 'Enter fullscreen'}>
-              {full ? <Minimize2 size={16} /> : <Maximize2 size={16} />}<span>Fullscreen</span>
-            </button>
-          </div>
-        )}
-      </div>
 
       {isLoading && (
         <div className="cam-ov" role="status" aria-live="polite">
@@ -84,7 +66,6 @@ function Viewfinder({ videoRef, camState, error, onAllow, mirror, showCrop, reso
       {isIdle && (
         <div className="cam-ov">
           <span className="cam-ov-ic"><Camera size={28} /></span>
-          <h3>Camera access required</h3>
           <p>OldLuna needs your camera to take your four photos.</p>
           <button type="button" className="pb-btn pb-btn--primary pb-btn--lg" onClick={onAllow}><Camera size={18} />Allow camera</button>
           <p className="cam-ov-note"><Lock size={13} aria-hidden="true" />Photos stay on your device. Nothing is uploaded.</p>
@@ -115,7 +96,7 @@ export default function CameraScreen({
   step = 1, onStepChange,
   videoRef, camState, camError, onAllowCamera,
   devices = [], deviceId = '', onDeviceChange, resolution,
-  mirror, onMirrorToggle, soundEnabled, onSoundToggle,
+  soundEnabled, onSoundToggle,
   onCapture, onCancelCapture,
   captureState, countdown, currentShot,
   isCapturing, isReady, photoUrls = [], total = 4, retakeIndex = null,
@@ -153,7 +134,7 @@ export default function CameraScreen({
   );
 
   const viewfinderProps = {
-    videoRef, camState, error: camError, onAllow: onAllowCamera, mirror,
+    videoRef, camState, error: camError, onAllow: onAllowCamera,
     resolution, soundEnabled, onSoundToggle,
   };
 
@@ -184,11 +165,6 @@ export default function CameraScreen({
               </div>
             </div>
 
-            <button type="button" role="switch" aria-checked={mirror} className="cam-row" disabled={locked}
-                    onClick={() => { playClick(soundEnabled); onMirrorToggle(); }}>
-              <span className="cam-row-l"><FlipHorizontal2 size={18} aria-hidden="true" />Mirror</span>
-              <span className="cam-row-r"><em>{mirror ? "On" : "Off"}</em><span className="pb-sw" aria-hidden="true" /></span>
-            </button>
 
             <button type="button" className="pb-btn pb-btn--primary pb-btn--block pb-btn--lg" disabled={!canGo} onClick={() => go(2)}>
               Continue <ArrowRight size={18} />

@@ -3,7 +3,7 @@
  *
  * compositeExport() takes:
  *   - photos:      array of PNG Blob objects (from captureFrame)
- *   - options:     filter, adjustments, frame, layout, stickers, caption, dateStamp, mirror
+ *   - options:     filter, adjustments, frame, layout, stickers, caption, dateStamp
  * Returns a PNG Blob at high resolution (at least 1200px wide for strips).
  */
 
@@ -86,7 +86,7 @@ const FRAME_STYLES = {
     for (const c of cells) { ctx.beginPath(); ctx.roundRect(c.x - e, c.y - e, c.w + e * 2, c.h + e + bottom, 4); ctx.fill(); }
     ctx.restore();
   } },
-  film: { after: (ctx, w, h) => {
+  film: { after: (ctx, w, h, t, i) => {
     ctx.fillStyle = '#191516';
     ctx.fillRect(0, 0, w, 36); ctx.fillRect(0, h - 36, w, 36);
     ctx.fillStyle = 'rgba(242,235,231,0.25)';
@@ -96,9 +96,10 @@ const FRAME_STYLES = {
       ctx.beginPath(); ctx.roundRect(x, 6, 24, 22, 6); ctx.fill();
       ctx.beginPath(); ctx.roundRect(x, h - 30, 24, 22, 6); ctx.fill();
     }
+    if (i?.wm) return;   // the permanent watermark header already carries the brand + date
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#F2EBE7'; ctx.font = `600 ${Math.round(w * 0.018)}px 'Poppins',sans-serif`;
-    ctx.fillText('OLDLUNA', w / 2, 26);
+    ctx.fillText('OldLuna Studio', w / 2, 26);
     ctx.fillStyle = '#EB6380'; ctx.font = `500 ${Math.round(w * 0.013)}px 'Poppins',sans-serif`;
     ctx.fillText(formatStripDate('long'), w / 2, h - 10);
   } },
@@ -129,13 +130,14 @@ function paintBackground(ctx, w, h, style, theme) {
 /**
  * @param {Blob[]|string[]} photos
  * @param {object} opts
- *   filterId, intensity, adjustments, mirror
+ *   filterId, intensity, adjustments
  *   frameStyle  classic|minimal|film|vintage|polaroid|rounded|none
  *   bgColor     ink|cream|white|pink        bgStyle  solid|dots|stripes|grid
  *   spacing / padding / border / radius     (px at 1× — doubled on export)
  *   caption, text, textPos('top'|'bottom'), fontSize('sm'|'md'|'lg')
  *   showDate, dateFormat, datePos('top'|'bottom')
  *   stickers [{id,x,y,scale,color}], showNumbers
+ *   watermark   permanent brand line drawn at the top of the strip, before date/caption
  *   previewWidth  >0 → render a small, fast preview
  * @returns {Promise<Blob>} PNG
  */
@@ -154,7 +156,6 @@ export async function compositeExport(photos, opts = {}) {
     showDate     = false,
     dateFormat   = 'dmy',
     datePos      = 'bottom',
-    mirror       = false,
     bgColor      = 'ink',
     bgStyle      = 'solid',
     spacing      = 24,
@@ -163,6 +164,8 @@ export async function compositeExport(photos, opts = {}) {
     radius       = 0,
     showNumbers  = false,
     previewWidth = 0,
+    refs         = [],      // PairSnap: pose reference images. When given, every row is [camera photo | pose]
+    watermark    = '',      // permanent brand line, always drawn above date/caption on the strip (not part of the user's text options)
   } = opts;
 
   const filter = FILTER_MAP[filterId] ?? FILTER_MAP['normal'];
@@ -172,7 +175,13 @@ export async function compositeExport(photos, opts = {}) {
   try { await Promise.all([document.fonts?.load("700 40px Poppins"), document.fonts?.load("600 40px Poppins"), document.fonts?.load("500 40px Poppins")]); } catch { /* fonts are best-effort */ }
 
   const images = await Promise.all(photos.map(loadImg));
+  const refImgs = refs.length ? await Promise.all(refs.map(loadImg)) : [];
+  const paired = refImgs.length > 0;
   const count  = images.length;
+  /* paired → [photo, pose, photo, pose …] so the camera shot is the left cell and the pose the right cell of each row */
+  const items = paired
+    ? images.flatMap((img, n) => (refImgs[n] ? [{ img, n }, { img: refImgs[n], ref: true }] : [{ img, n }]))
+    : images.map((img, n) => ({ img, n }));
 
   /* All layout maths happens in "logical" full-res units; `k` scales the
      real canvas down for previews so frames / stickers / text look identical. */
@@ -180,18 +189,21 @@ export async function compositeExport(photos, opts = {}) {
   const GAP = Math.round(spacing * EXPORT_SCALE);
   const fs  = FONT_SCALE[fontSize] ?? 1;
 
+  /* Footer hierarchy, top to bottom:  BRAND  ·  caption  ·  date.
+     With the permanent watermark the whole footer is one block under the photos, so it can never be split or reordered. */
   const kinds = [];
-  if (caption) kinds.push({ kind: 'caption', pos: textPos });
-  if (text)    kinds.push({ kind: 'text',    pos: textPos });
-  if (showDate) kinds.push({ kind: 'date',   pos: datePos });
+  if (watermark) kinds.push({ kind: 'watermark', pos: 'bottom' });
+  if (caption)   kinds.push({ kind: 'caption',   pos: watermark ? 'bottom' : textPos });
+  if (text)      kinds.push({ kind: 'text',      pos: watermark ? 'bottom' : textPos });
+  if (showDate)  kinds.push({ kind: 'date',      pos: watermark ? 'bottom' : datePos });
   const topKinds = kinds.filter(k => k.pos === 'top');
   const botKinds = kinds.filter(k => k.pos !== 'top');
   const blockH = n => (n ? Math.round((28 + 38 * fs * n) * EXPORT_SCALE) : 0);
   const TOP_H = blockH(topKinds.length), BOT_H = blockH(botKinds.length);
 
-  const isStrip = layout === 'strip' || count === 1;
-  const cols = isStrip ? 1 : 2;
-  const rows = isStrip ? count : (layout === 'grid2x3' ? 3 : Math.ceil(count / 2));
+  const isStrip = paired || layout === 'strip' || count === 1;
+  const cols = paired ? 2 : isStrip ? 1 : 2;
+  const rows = paired ? count : isStrip ? count : (layout === 'grid2x3' ? 3 : Math.ceil(count / 2));
   const ar   = isStrip ? STRIP_AR : ((images[0]?.width && images[0]?.height) ? images[0].width / images[0].height : 16 / 9);
 
   const canvasW = isStrip ? 1200 : Math.max(1200, (images[0]?.width ?? 640) * 2 + PAD * 3);
@@ -200,7 +212,7 @@ export async function compositeExport(photos, opts = {}) {
   const photosH = PAD * 2 + GAP * (rows - 1) + cellH * rows;
   const canvasH = photosH + TOP_H + BOT_H;
 
-  const cells = Array.from({ length: Math.min(count, cols * rows) }, (_, i) => ({
+  const cells = Array.from({ length: Math.min(items.length, cols * rows) }, (_, i) => ({
     x: PAD + (i % cols) * (cellW + GAP), y: PAD + Math.floor(i / cols) * (cellH + GAP), w: cellW, h: cellH,
   }));
 
@@ -213,19 +225,22 @@ export async function compositeExport(photos, opts = {}) {
 
   paintBackground(ctx, canvasW, canvasH, bgStyle, theme);
 
-  const info = { ins: Math.max(4, Math.min(14, PAD / 2 - 4)), gap: GAP, pad: PAD };
-  const cornerR = Math.max(radius * EXPORT_SCALE, frameStyle === 'rounded' ? 28 : 0);
+  const info = { ins: Math.max(4, Math.min(14, PAD / 2 - 4)), gap: GAP, pad: PAD, wm: !!watermark };
+  const cornerR = Math.max(radius * EXPORT_SCALE, frameStyle === 'rounded' ? (paired ? 8 : 28) : 0);
 
   /* ── photos, frame, stickers: drawn in the "photo area" (shifted down by the top text block) ── */
   ctx.save();
   ctx.translate(0, TOP_H);
   frame.before?.(ctx, cells, theme, info);
 
-  for (let i = 0; i < images.length && i < cells.length; i++) {
-    const img = images[i];
+  for (let i = 0; i < items.length && i < cells.length; i++) {
+    const { img, ref } = items[i];
     const { x, y, w, h } = cells[i];
 
-    const cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
+    /* Snap every cell to whole device pixels from its shared edges, so neighbouring photos meet exactly
+       (no hairline seams or 1px gaps at any preview scale). */
+    const dx = Math.round(x * k), dy = Math.round((y + TOP_H) * k);
+    const cw = Math.max(1, Math.round((x + w) * k) - dx), ch = Math.max(1, Math.round((y + TOP_H + h) * k) - dy);
     const offCell = document.createElement('canvas');
     offCell.width = cw; offCell.height = ch;
     const oc = offCell.getContext('2d', { willReadFrequently: true });
@@ -236,16 +251,15 @@ export async function compositeExport(photos, opts = {}) {
     if (imgAr > cellAr) { sw = img.height * cellAr; sx = (img.width - sw) / 2; }
     else                { sh = img.width / cellAr;  sy = (img.height - sh) / 2; }
 
-    if (mirror) { oc.save(); oc.translate(cw, 0); oc.scale(-1, 1); }
     oc.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
-    if (mirror) oc.restore();
 
-    filter.apply(oc, cw, ch, intensity);
+    /* pose references stay exactly as the original picture — filters/adjustments only touch the camera shots */
+    if (!ref) filter.apply(oc, cw, ch, intensity);
 
-    if (adjustments.brightness !== 100 || adjustments.contrast !== 100 || adjustments.saturation !== 100) {
+    if (!ref && (adjustments.brightness !== 100 || adjustments.contrast !== 100 || adjustments.saturation !== 100)) {
       applyAdjustments(oc, cw, ch, adjustments);
     }
-    if (adjustments.grain > 0) {
+    if (!ref && adjustments.grain > 0) {
       const gd = oc.getImageData(0, 0, cw, ch), dd = gd.data, amt = adjustments.grain;
       for (let j = 0; j < dd.length; j += 4) {
         const n = (Math.random() - 0.5) * amt;
@@ -257,18 +271,19 @@ export async function compositeExport(photos, opts = {}) {
     }
 
     ctx.save();
-    if (cornerR > 0) { ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(cornerR, h / 2, w / 2)); ctx.clip(); }
-    ctx.drawImage(offCell, x, y, w, h);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);            // draw in device pixels
+    if (cornerR > 0) { ctx.beginPath(); ctx.roundRect(dx, dy, cw, ch, Math.min(cornerR * k, ch / 2, cw / 2)); ctx.clip(); }
+    ctx.drawImage(offCell, dx, dy);
     ctx.restore();
 
-    if (showNumbers) {
+    if (showNumbers && !ref) {
       const r = 22, bx = x + 16 + r, by = y + h - 16 - r;
       ctx.save();
       ctx.fillStyle = 'rgba(25,21,22,.78)';
       ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#F2EBE7'; ctx.font = "600 24px 'Poppins',sans-serif";
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(String(i + 1), bx, by + 1);
+      ctx.fillText(String(items[i].n + 1), bx, by + 1);
       ctx.restore();
     }
   }
@@ -285,26 +300,39 @@ export async function compositeExport(photos, opts = {}) {
   }
 
   /* ── text blocks (name / caption / date), above and/or below the photos ── */
+  /* Shrink a line until it fits inside the strip's printable width (long captions never clip). */
+  const fitFont = (txt, weight, size, maxW) => {
+    ctx.font = `${weight} ${size}px 'Poppins',sans-serif`;
+    const w = ctx.measureText(txt).width;
+    if (w > maxW) ctx.font = `${weight} ${Math.max(10, Math.floor(size * maxW / w))}px 'Poppins',sans-serif`;
+  };
   const drawBlock = (list, y0, h) => {
     if (!list.length) return;
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const rowH = h / list.length;
+    const rowH = h / list.length, maxW = canvasW - PAD * 2;
     list.forEach((it, idx) => {
       const ry = y0 + rowH * (idx + 0.5);
-      if (it.kind === 'caption') {
+      if (it.kind === 'watermark') {
         ctx.fillStyle = theme.fg;
-        ctx.font = `700 ${Math.round(rowH * 0.5)}px 'Poppins',sans-serif`;
+        if ('letterSpacing' in ctx) ctx.letterSpacing = `${Math.round(rowH * 0.03)}px`;
+        fitFont(watermark, 800, Math.round(rowH * 0.46), maxW);
+        ctx.fillText(watermark, canvasW / 2, ry);
+        if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+      } else if (it.kind === 'caption') {
+        ctx.fillStyle = theme.fg;
+        fitFont(caption.slice(0, 24), 700, Math.round(rowH * 0.5), maxW);
         ctx.fillText(caption.slice(0, 24), canvasW / 2, ry);
       } else if (it.kind === 'text') {
-        ctx.fillStyle = theme.fg; ctx.globalAlpha = 0.8;
-        ctx.font = `600 ${Math.round(rowH * 0.42)}px 'Poppins',sans-serif`;
+        ctx.fillStyle = theme.fg; ctx.globalAlpha = 0.85;
+        fitFont(text.slice(0, 32), 600, Math.round(rowH * 0.42), maxW);
         ctx.fillText(text.slice(0, 32), canvasW / 2, ry);
         ctx.globalAlpha = 1;
       } else {
         ctx.fillStyle = theme.accent;
-        ctx.font = `600 ${Math.round(rowH * 0.36)}px 'Poppins',sans-serif`;
-        ctx.fillText(formatStripDate(dateFormat), canvasW / 2, ry);
+        const d = formatStripDate(dateFormat);
+        fitFont(d, 600, Math.round(rowH * 0.36), maxW);
+        ctx.fillText(d, canvasW / 2, ry);
       }
     });
     ctx.restore();

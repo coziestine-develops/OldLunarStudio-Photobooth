@@ -26,7 +26,10 @@ import { useGallery }                  from './hooks/useGallery.js';
 import { initAudio }                   from './utils/sounds.js';
 import { DEFAULT_FILTER, DEFAULT_INTENSITY } from './utils/filters.js';
 import { blobToDataURL }               from './utils/canvas.js';
-import { parseShareHash, designToEditor } from './utils/share.js';
+import { designToEditor } from './utils/share.js';
+import { DEFAULT_EDITOR } from './utils/editorDefaults.js';
+import PairSnap from './components/pairsnap/PairSnap.jsx';
+import { WATERMARK_TEXT } from './utils/watermark.js';
 
 /* ── Sub-screen identifiers inside the photobooth ── */
 const SUB = {
@@ -35,42 +38,9 @@ const SUB = {
   EDITOR:  'editor',
 };
 
-/* ── Default photo-editor state ── */
-const DEFAULT_EDITOR = {
-  adjustments: { brightness:100, contrast:100, saturation:100, grain:0 },
-  stylePreset: 'classic',
-  frameStyle:  'classic',
-  bgColor:     'cream',
-  bgStyle:     'solid',
-  layout:      'strip',
-  // text
-  caption:     'OLDLUNA',
-  showCaption: true,
-  text:        '',
-  showText:    false,
-  textPos:     'bottom',
-  fontSize:    'md',
-  // date
-  showDate:    true,
-  dateFormat:  'dmy',
-  datePos:     'bottom',
-  // layout
-  spacing:     24,
-  padding:     24,
-  border:      0,
-  radius:      0,
-  // decorations
-  stickers:    [],
-  stickerSize: 1,
-  stickerColor:'pink',
-  showNumbers: false,
-};
-
 export default function App() {
-  /* ── Opened from a share link? (parsed once) ── */
-  const [shared] = useState(() => parseShareHash());
-
   /* ── Top-level view ── */
+  const [mode,         setMode]         = useState('oldluna'); // 'oldluna' | 'pairsnap'
   const [inPhotobooth, setInPhotobooth] = useState(false);
   const [sub,          setSub]          = useState(SUB.CAMERA);
   const [camStep,      setCamStep]      = useState(1); // 1 camera · 2 capture
@@ -104,7 +74,7 @@ export default function App() {
     setInPhotobooth(true);
     setSub(SUB.CAMERA);
     setCamStep(1);
-    // a design chosen in the landing builder / shared link seeds the editor
+    // a design chosen in the landing builder seeds the editor
     const d = design && typeof design === 'object' && 'frameStyle' in design ? design : null;
     setEditorState(d ? { ...DEFAULT_EDITOR, ...designToEditor(d) } : DEFAULT_EDITOR);
     if (d) { setFilter(d.filter); setIntensity(d.intensity); }
@@ -139,21 +109,20 @@ export default function App() {
       filterId:     'normal', // originals are saved untouched; filter is applied non-destructively
       timerSecs:    timer,
       photoCount,
-      mirror:       cam.mirror,
       soundEnabled,
       retakeIndex:  retakeIdx,
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cam.isReady, cam.mirror, cap.isCapturing, filter, timer, photoCount, soundEnabled, retakeIdx]);
+  }, [cam.isReady, cap.isCapturing, filter, timer, photoCount, soundEnabled, retakeIdx]);
 
   /* ── Move to session gallery when capture completes ── */
   useEffect(() => {
-    if (cap.captureState === CS.DONE && cap.photoUrls.length > 0) {
+    if (inPhotobooth && cap.captureState === CS.DONE && cap.photoUrls.length > 0) {
       // Let the filled slots (4/4) show for a moment before moving on
       const t = setTimeout(() => { setRetakeIdx(null); setSub(SUB.SESSION); }, 1300);
       return () => clearTimeout(t);
     }
-  }, [cap.captureState, cap.photoUrls.length]);
+  }, [inPhotobooth, cap.captureState, cap.photoUrls.length]);
 
   /* ── Session gallery: reorder ── */
   const [sessionUrls, setSessionUrls] = useState([]);
@@ -256,8 +225,17 @@ export default function App() {
   /* RENDER                                                  */
   /* ─────────────────────────────────────────────────────── */
 
+  if (mode === 'pairsnap') {
+    return (
+      <PairSnap
+        cam={cam} cap={cap}
+        onExit={() => { cam.stop(); cap.reset(); setMode('oldluna'); }}
+      />
+    );
+  }
+
   if (!inPhotobooth) {
-    return <LandingPage onStart={handleStart} soundEnabled={soundEnabled} shared={shared} />;
+    return <LandingPage onStart={handleStart} onStartPairSnap={() => { ensureAudio(); setMode('pairsnap'); }} soundEnabled={soundEnabled} />;
   }
 
   return (
@@ -293,8 +271,6 @@ export default function App() {
               camState={cam.state}
               camError={cam.error}
               onAllowCamera={cam.request}
-              mirror={cam.mirror}
-              onMirrorToggle={cam.toggleMirror}
               soundEnabled={soundEnabled}
               onSoundToggle={() => setSoundEnabled(v => !v)}
               onCapture={() => handleCapture()}
@@ -338,6 +314,7 @@ export default function App() {
               onResetEditor={handleResetEditor}
               onRetake={handleRetakeFromEditor}
               soundEnabled={soundEnabled}
+              lockedWatermark={WATERMARK_TEXT}
             />
           )}
         </div>

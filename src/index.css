@@ -448,3 +448,19 @@ a { color: inherit; text-decoration: none; }
   html { scroll-behavior: auto; }
   .fade-up { opacity: 1; transform: none; transition: none; }
 }
+
+/* ════════════════════════════════════════════════
+   INTERACTION BASELINE (touch + keyboard)
+   ════════════════════════════════════════════════ */
+
+/* No blue/grey flash on tap, no double-tap zoom delay on controls. Keyboard focus stays visible (pink ring, below). */
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+a, button, [role="button"], [role="radio"], [role="switch"], [role="tab"], label, select, summary, input, textarea {
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+img { -webkit-user-drag: none; }
+:focus-visible { outline: 2px solid var(--pb-red); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
+/* 16px minimum on touch screens stops iOS from zooming the page when a field is focused */
+@media (hover: none) and (pointer: coarse) { input, select, textarea { font-size: 16px !important; } }

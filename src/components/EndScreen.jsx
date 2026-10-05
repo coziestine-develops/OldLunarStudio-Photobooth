@@ -49,8 +49,8 @@ export default function EndScreen({
     if (exportBlob && navigator.canShare?.({ files: [new File([exportBlob], 'oldluna.png', { type: 'image/png' })] })) {
       try {
         await navigator.share({
-          files: [new File([exportBlob], 'oldluna-photostrip.png', { type: 'image/png' })],
-          title: 'My OldLuna photo strip',
+          files: [new File([exportBlob], 'oldlunar studio-photostrip.png', { type: 'image/png' })],
+          title: 'My OldLunar Studio photo strip',
         });
       } catch (e) {
         if (e.name !== 'AbortError') setShareMsg('Sharing cancelled.');

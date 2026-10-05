@@ -42,7 +42,6 @@ export default function CameraPreview({
         className="cp-video"
         data-visible={isGranted}
         autoPlay playsInline muted
-        aria-label="Live camera preview"
         style={{
           filter: cssFilter,
           transform: mirror ? 'scaleX(-1)' : 'none',

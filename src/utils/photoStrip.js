@@ -58,7 +58,7 @@ export async function generatePhotoCompose(photos, filterId = 'normal', layout =
   ctx.fillStyle = '#FFFFFF';
   ctx.font = `bold 22px 'Space Mono', monospace`;
   ctx.textAlign = 'center';
-  ctx.fillText('OLDLUNA', totalW / 2, 36);
+  ctx.fillText('OldLuna Studio', totalW / 2, 36);
   ctx.fillStyle = '#AC58E9';
   ctx.font = `12px 'Space Grotesk', sans-serif`;
   ctx.fillText(filterId.toUpperCase(), totalW / 2, 52);

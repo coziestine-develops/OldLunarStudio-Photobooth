@@ -3,19 +3,19 @@
  * Left: live strip preview. Right: Style (filter · style · frame) and Customize (text · date · layout · background · decorations) + actions.
  * Every control feeds the same options object that is used for the preview AND for the downloaded PNG.
  */
-import { useState, useRef, useEffect, useCallback, useId, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import {
-  Calendar, Camera, ChevronDown, Crown, Download, Frame, Heart, Moon, Palette, Printer, Share2, Sparkles, Star, Trash2, Type,
+  Calendar, Camera, ChevronDown, Crown, Download, Frame, Heart, Lock, Moon, Palette, Printer, Share2, Sparkles, Star, Trash2, Type,
 } from 'lucide-react';
 import { FILTERS } from '../utils/filters.js';
 import { compositeExport, loadImg, STRIP_THEMES, DATE_FORMATS } from '../utils/export.js';
 import { downloadBlob, pngFilename } from '../utils/canvas.js';
 import { playClick, playDownload } from '../utils/sounds.js';
 import Dropdown from './Dropdown.jsx';
-import ShareSheet from './ShareSheet.jsx';
-import { buildShareLink, editorToDesign } from '../utils/share.js';
 import './camera.css';
 import './finalOutput.css';
+
+const NO_REFS = [];   // stable default so the preview effect doesn't re-fire every render
 
 /* ── Options ── */
 export const FRAMES = [
@@ -29,16 +29,22 @@ const BGS = [
 const BG_STYLES = [
   { id: 'solid', label: 'Plain' }, { id: 'dots', label: 'Dots' }, { id: 'stripes', label: 'Stripes' }, { id: 'grid', label: 'Grid' },
 ];
-const BASE_LAYOUT = { spacing: 24, padding: 24, border: 0, radius: 0, stickers: [] };
+const BASE_LAYOUT = { spacing: 0, padding: 24, border: 0, radius: 0, stickers: [] };
 export const STYLE_PRESETS = [
   { id: 'classic',  label: 'Classic',  patch: { bgColor: 'cream', frameStyle: 'classic',  bgStyle: 'solid' } },
-  { id: 'minimal',  label: 'Minimal',  patch: { bgColor: 'white', frameStyle: 'minimal',  bgStyle: 'solid', spacing: 16 } },
+  { id: 'minimal',  label: 'Minimal',  patch: { bgColor: 'white', frameStyle: 'minimal',  bgStyle: 'solid' } },
   { id: 'romantic', label: 'Romantic', patch: { bgColor: 'pink',  frameStyle: 'rounded',  bgStyle: 'dots', radius: 12, stickers: ['heart', 'sparkle'] } },
   { id: 'film',     label: 'Film',     patch: { bgColor: 'ink',   frameStyle: 'film',     bgStyle: 'solid' } },
   { id: 'vintage',  label: 'Vintage',  patch: { bgColor: 'cream', frameStyle: 'vintage',  bgStyle: 'stripes' } },
-  { id: 'clean',    label: 'Clean',    patch: { bgColor: 'white', frameStyle: 'none',     bgStyle: 'solid', spacing: 12, padding: 16 } },
+  { id: 'clean',    label: 'Clean',    patch: { bgColor: 'white', frameStyle: 'none',     bgStyle: 'solid', padding: 16 } },
   { id: 'dark',     label: 'Dark',     patch: { bgColor: 'ink',   frameStyle: 'minimal',  bgStyle: 'grid' } },
   { id: 'pink',     label: 'Pink',     patch: { bgColor: 'pink',  frameStyle: 'classic',  bgStyle: 'solid' } },
+];
+export const LAYOUT_PRESETS = [
+  { id: 'classic', label: 'Classic Vertical', patch: { layout: 'strip', frameStyle: 'classic', bgColor: 'cream', bgStyle: 'solid' } },
+  { id: 'film',    label: 'Retro Film',       patch: { layout: 'strip', frameStyle: 'film',    bgColor: 'ink',   bgStyle: 'solid' } },
+  { id: 'grid',    label: 'Four-Frame Grid',  patch: { layout: 'grid',  frameStyle: 'classic', bgColor: 'cream', bgStyle: 'solid' } },
+  { id: 'minimal', label: 'Minimal Cream',    patch: { layout: 'strip', frameStyle: 'minimal', bgColor: 'cream', bgStyle: 'solid' } },
 ];
 const STICKERS = [
   { id: 'star', label: 'Star', Icon: Star }, { id: 'heart', label: 'Heart', Icon: Heart }, { id: 'sparkle', label: 'Sparkle', Icon: Sparkles },
@@ -140,6 +146,9 @@ function useFilterThumbs(url) {
 export default function PhotoEditor({
   photoUrls, filterId, onFilterChange, intensity, onIntensityChange,
   editorState: es, onStateChange, onResetEditor, onRetake, onSave, soundEnabled,
+  fileName = null, showLayoutPresets = false,
+  refs = NO_REFS,         // PairSnap: pose images → each strip row becomes [camera photo | pose]
+  lockedWatermark = '',   // when set: drawn on every preview/download/share/print and cannot be edited or switched off
 }) {
   const uid = useId();
   const { adjustments } = es;
@@ -148,12 +157,6 @@ export default function PhotoEditor({
   const [previewUrl, setPreviewUrl] = useState(null);
   const [rendering, setRendering] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
-  /* Auto-generated share link: always matches the current design, no click needed */
-  const shareLink = useMemo(
-    () => buildShareLink(editorToDesign(es, filterId, intensity)),
-    [es, filterId, intensity]
-  );
   const [msg, setMsg] = useState({ text: '', err: false });
   const lastUrl = useRef(null);
   const savedRef = useRef(false);
@@ -163,17 +166,17 @@ export default function PhotoEditor({
   /* single source of truth: used by the live preview AND the downloaded file */
   const buildOpts = useCallback(() => ({
     filterId, intensity: intensity / 100,
-    adjustments, frameStyle: es.frameStyle, layout: 'strip', bgColor: es.bgColor, bgStyle: es.bgStyle,
+    adjustments, frameStyle: es.frameStyle, layout: es.layout || 'strip', bgColor: es.bgColor, bgStyle: es.bgStyle,
     spacing: es.spacing, padding: es.padding, border: es.border, radius: es.radius,
-    caption: es.showCaption ? es.caption : '', text: es.showText ? es.text : '',
+    caption: !lockedWatermark && es.showCaption ? es.caption : '', watermark: lockedWatermark, refs, text: es.showText ? es.text : '',
     textPos: es.textPos, fontSize: es.fontSize,
     showDate: es.showDate, dateFormat: es.dateFormat, datePos: es.datePos,
     stickers: STICKERS.filter(s => es.stickers.includes(s.id)).map((s, i) => ({
       id: s.id, x: STICKER_SPOTS[i % STICKER_SPOTS.length][0], y: STICKER_SPOTS[i % STICKER_SPOTS.length][1],
       scale: es.stickerSize, color: es.stickerColor,
     })),
-    showNumbers: es.showNumbers, mirror: false,
-  }), [filterId, intensity, adjustments, es]);
+    showNumbers: es.showNumbers,
+  }), [filterId, intensity, adjustments, es, lockedWatermark, refs]);
 
   /* Live preview: small render, debounced, stale renders are dropped */
   useEffect(() => {
@@ -215,29 +218,26 @@ export default function PhotoEditor({
     const blob = await makeFinal();
     if (!blob) throw new Error('empty');
     playDownload(soundEnabled);
-    downloadBlob(blob, pngFilename());
+    downloadBlob(blob, fileName ? fileName() : pngFilename());
     afterExport(blob);
     flash('Saved! Check your downloads.');
   }, 'Download failed. Please try again.');
 
-  /* Share button → sheet with the generated unique link (copy / native share) + the finished image */
-  const handleShare = () => {
+  /* Share → the finished strip image through the device share sheet (falls back to a download). No links. */
+  const handleShare = () => run(async () => {
     playClick(soundEnabled);
-    setShareOpen(true);
-  };
-
-  const shareImage = async () => {
     const blob = await makeFinal();
     if (!blob) throw new Error('empty');
-    const file = new File([blob], 'oldluna-photostrip.png', { type: 'image/png' });
+    const name = fileName ? fileName() : 'oldlunar studio-photostrip.png';
+    const file = new File([blob], name, { type: 'image/png' });
     afterExport(blob);
     if (navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: 'My OldLuna photo strip' }); return 'Shared!'; }
-      catch (e) { if (e.name === 'AbortError') return ''; throw e; }
+      try { await navigator.share({ files: [file], title: 'My OldLunar Studio photo strip' }); flash('Shared!'); return; }
+      catch (e) { if (e.name === 'AbortError') return; throw e; }
     }
-    downloadBlob(blob, pngFilename());
-    return 'Image sharing isn’t supported here, so your strip was downloaded.';
-  };
+    downloadBlob(blob, name);
+    flash('Sharing isn’t supported here, so your strip was downloaded.');
+  }, 'Couldn’t share the image. Try downloading it instead.');
 
   const handlePrint = () => {
     const w = window.open('', '_blank'); // open now so pop-up blockers allow it
@@ -263,6 +263,8 @@ export default function PhotoEditor({
   };
   const toggleSticker = id => click(() => edit({ stickers: es.stickers.includes(id) ? es.stickers.filter(s => s !== id) : [...es.stickers, id] }))();
 
+  /* paired strips are always one row per pose, so the 2×2 grid preset doesn't apply */
+  const layoutPresets = refs.length ? LAYOUT_PRESETS.filter(p => p.patch.layout !== 'grid') : LAYOUT_PRESETS;
   const bgLabel = BGS.find(b => b.id === es.bgColor)?.label ?? '';
   const status = busy ? 'Saving…' : rendering ? 'Updating…' : 'Ready';
 
@@ -319,12 +321,19 @@ export default function PhotoEditor({
             <div><span className="pb-eyebrow" id={`${uid}-cust`}>Customize</span><h2>Make it yours</h2></div>
 
             <div className="fo-rows">
-              <div className={`fo-row ${es.showCaption ? '' : 'is-off'}`}>
-                <Type size={18} aria-hidden="true" />
-                <input className="fo-in" value={es.caption} maxLength={24} disabled={!es.showCaption} placeholder="Name" aria-label="Name"
-                       onChange={e => onStateChange({ caption: e.target.value })} />
-                <Switch on={es.showCaption} label="Show name" onChange={click(() => onStateChange({ showCaption: !es.showCaption }))} />
-              </div>
+              {lockedWatermark ? (
+                <div className="fo-row fo-row--locked" aria-label={`Watermark: ${lockedWatermark}, always on`}>
+                  <Lock size={18} aria-hidden="true" />
+                  <span className="fo-in fo-in--label">{lockedWatermark}<small>Watermark · always on</small></span>
+                </div>
+              ) : (
+                <div className={`fo-row ${es.showCaption ? '' : 'is-off'}`}>
+                  <Type size={18} aria-hidden="true" />
+                  <input className="fo-in" value={es.caption} maxLength={24} disabled={!es.showCaption} placeholder="Name" aria-label="Name"
+                         onChange={e => onStateChange({ caption: e.target.value })} />
+                  <Switch on={es.showCaption} label="Show name" onChange={click(() => onStateChange({ showCaption: !es.showCaption }))} />
+                </div>
+              )}
               <div className={`fo-row ${es.showText ? '' : 'is-off'}`}>
                 <Type size={18} aria-hidden="true" />
                 <input className="fo-in" value={es.text} maxLength={32} disabled={!es.showText} placeholder="Caption" aria-label="Caption"
@@ -346,10 +355,17 @@ export default function PhotoEditor({
 
             <Section id="date" icon={<Calendar size={18} />} title="Date" value={dateLabel(es.dateFormat)} open={open === 'date'} onToggle={toggle('date')}>
               <Field label="Date format"><Dropdown label="Date format" value={es.dateFormat} options={DATE_FORMATS} onChange={v => onStateChange({ dateFormat: v })} /></Field>
-              <Field label="Position"><Segmented label="Date position" value={es.datePos} options={POS} onChange={v => onStateChange({ datePos: v })} /></Field>
+              {!lockedWatermark && <Field label="Position"><Segmented label="Date position" value={es.datePos} options={POS} onChange={v => onStateChange({ datePos: v })} /></Field>}
             </Section>
 
             <Section id="layout" icon={<Frame size={18} />} title="Layout" open={open === 'layout'} onToggle={toggle('layout')}>
+              {showLayoutPresets && (
+                <Field label="Strip layout">
+                  <Dropdown label="Strip layout" value={layoutPresets.find(p => p.patch.layout === (es.layout || 'strip') && p.patch.frameStyle === es.frameStyle)?.id ?? 'custom'}
+                            options={[...layoutPresets, { id: 'custom', label: 'Custom' }]}
+                            onChange={id => { const p = layoutPresets.find(x => x.id === id); if (p) { playClick(soundEnabled); onStateChange({ ...BASE_LAYOUT, ...p.patch, ...(refs.length ? { layout: 'strip' } : {}), stylePreset: 'custom' }); } }} />
+                </Field>
+              )}
               <Slider label="Photo spacing" value={es.spacing} min={0} max={60} suffix="px" onChange={v => edit({ spacing: v })} />
               <Slider label="Padding" value={es.padding} min={8} max={60} suffix="px" onChange={v => edit({ padding: v })} />
               <Slider label="Border" value={es.border} min={0} max={24} suffix="px" onChange={v => edit({ border: v })} />
@@ -372,17 +388,16 @@ export default function PhotoEditor({
 
             <div className="fo-actions">
               <button type="button" className="pb-btn pb-btn--primary fo-act-dl" onClick={handleDownload} disabled={busy} aria-label="Download PNG"><Download size={18} /><span>Download</span></button>
-              <button type="button" className="pb-btn pb-btn--ghost" onClick={handleShare} aria-label="Share"><Share2 size={18} /><span>Share</span></button>
+              <button type="button" className="pb-btn pb-btn--ghost" onClick={handleShare} disabled={busy} aria-label="Share image"><Share2 size={18} /><span>Share</span></button>
               <button type="button" className="pb-btn pb-btn--ghost" onClick={handlePrint} disabled={busy} aria-label="Print"><Printer size={18} /><span>Print</span></button>
               <button type="button" className="pb-btn pb-btn--ghost" onClick={handleDelete} disabled={busy} aria-label="Delete photos"><Trash2 size={18} /><span>Delete</span></button>
             </div>
             <p className={`fo-msg ${msg.err ? 'is-err' : ''}`} role="status" aria-live="polite">
               {busy ? 'Preparing your full-resolution strip…' : msg.text}
             </p>
-                      </section>
+          </section>
         </div>
       </main>
-      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} link={shareLink} onShareImage={shareImage} />
     </div>
   );
 }
