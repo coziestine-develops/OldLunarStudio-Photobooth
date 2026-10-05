@@ -7,7 +7,7 @@ export const DEFAULT_EDITOR = {
   bgStyle:     'solid',
   layout:      'strip',
   // text
-  caption:     'OLDLUNA',
+  caption:     'OLDLUNAR STUDIO',
   showCaption: true,
   text:        '',
   showText:    false,

@@ -118,9 +118,8 @@ export default function App() {
   /* ── Move to session gallery when capture completes ── */
   useEffect(() => {
     if (inPhotobooth && cap.captureState === CS.DONE && cap.photoUrls.length > 0) {
-      // Let the filled slots (4/4) show for a moment before moving on
-      const t = setTimeout(() => { setRetakeIdx(null); setSub(SUB.SESSION); }, 1300);
-      return () => clearTimeout(t);
+      // Move on right away: no artificial wait between the last capture and the results
+      setRetakeIdx(null); setSub(SUB.SESSION);
     }
   }, [inPhotobooth, cap.captureState, cap.photoUrls.length]);
 
@@ -331,9 +330,7 @@ export default function App() {
           flex: 1;
           display: flex;
           flex-direction: column;
-          animation: fadeIn 0.3s ease;
         }
-        @keyframes appSpin { to { transform: rotate(360deg); } }
       `}</style>
     </>
   );

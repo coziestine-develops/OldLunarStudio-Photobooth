@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { X } from '../icons.jsx';
 
 /** Countdown overlay: ring + number, shot pill, cancel. Esc cancels. */
 export default function Countdown({ value, currentShot, totalShots, onCancel }) {
@@ -32,7 +33,7 @@ export default function Countdown({ value, currentShot, totalShots, onCancel }) 
         </div>
       )}
       <button type="button" className="cd-cancel" onClick={onCancel} aria-label="Cancel capture (Esc)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        <X size={14} aria-hidden="true" />
         Cancel
       </button>
     </div>

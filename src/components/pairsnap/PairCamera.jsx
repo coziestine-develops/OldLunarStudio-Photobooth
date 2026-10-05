@@ -1,19 +1,16 @@
 /** PairSnap step 3 — camera, current-pose card, countdown and the four-shot progress panel. */
-import { useRef, useState, useEffect } from 'react';
-import { Camera, Maximize2, Minimize2, RotateCcw, ArrowRight, Lock, X } from 'lucide-react';
+import { useRef, useEffect } from 'react';
+import { Camera, RotateCcw, ArrowRight, Lock, X } from '../../icons.jsx';
 import { CAM } from '../../hooks/useCamera.js';
+import { CS } from '../../hooks/useCapture.js';
 import { WATERMARK_TEXT } from '../../utils/watermark.js';
 import Countdown from '../Countdown.jsx';
-
-const canFullscreen = () => typeof document !== 'undefined' && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 
 export default function PairCamera({
   cam, cap, poses, total = 4, running, retakeIdx,
   onStart, onCancel, onRetake, onContinue,
 }) {
   const boxRef = useRef(null);
-  const [full, setFull] = useState(false);
-  const fsOk = canFullscreen();
 
   const live = cam.state === CAM.GRANTED;
   const urls = cap.photoUrls;
@@ -34,37 +31,17 @@ export default function PairCamera({
     return () => { v.removeEventListener('canplay', h); v.removeEventListener('loadedmetadata', h); };
   }, [cam.videoRef]);
 
-  useEffect(() => {
-    const h = () => setFull((document.fullscreenElement ?? document.webkitFullscreenElement) === boxRef.current);
-    document.addEventListener('fullscreenchange', h);
-    document.addEventListener('webkitfullscreenchange', h);
-    return () => { document.removeEventListener('fullscreenchange', h); document.removeEventListener('webkitfullscreenchange', h); };
-  }, []);
-
-  const toggleFull = () => {
-    const el = boxRef.current;
-    if (!el) return;
-    if (document.fullscreenElement ?? document.webkitFullscreenElement) (document.exitFullscreen ?? document.webkitExitFullscreen)?.call(document);
-    else (el.requestFullscreen ?? el.webkitRequestFullscreen)?.call(el);
-  };
-
   const startLabel = retakeIdx !== null ? 'Retake' : urls.length > 0 ? 'Resume' : 'Start';
 
   return (
     <div className="ps-cam">
       <div className="ps-cam-main">
         <div className="ps-vf" ref={boxRef} data-live={live}>
-          <video ref={cam.videoRef} className="ps-video" autoPlay playsInline muted
+          <video ref={cam.videoRef} className="ps-video" autoPlay playsInline muted disablePictureInPicture disableRemotePlayback
                  aria-label="Live camera preview" />
 
           {/* what ends up in the strip: the centre 4:3 of the picture */}
           {live && <div className="ps-crop" aria-hidden="true" />}
-
-          {live && fsOk && (
-            <button type="button" className="ps-fs" onClick={toggleFull} aria-label={full ? 'Exit full screen' : 'Full screen'}>
-              {full ? <Minimize2 size={20} aria-hidden="true" /> : <Maximize2 size={20} aria-hidden="true" />}
-            </button>
-          )}
 
           {live && curPose && !allDone && (
             <div className="ps-ref" aria-label={`${curPose.title}, ${curIdx + 1}/${total}`}>
@@ -123,7 +100,8 @@ export default function PairCamera({
           {Array.from({ length: total }).map((_, i) => {
             const url = urls[i], p = poses[i];
             const isCur = !allDone && i === curIdx;
-            const state = url && !(isCur && retakeIdx === i && running) ? 'done' : isCur ? 'current' : 'next';
+            const retaking = isCur && retakeIdx === i && running && cap.captureState !== CS.IDLE && cap.captureState !== CS.DONE && cap.captureState !== CS.FLASH;
+            const state = url && !retaking ? 'done' : isCur ? 'current' : 'next';
             return (
               <div key={i} className={`ps-shot is-${state}`}>
                 {/* empty slot: the chosen pose, faded, as a guide · taken slot: your photo */}

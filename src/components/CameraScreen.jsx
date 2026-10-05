@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Camera, ChevronDown, Lock, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRight, Camera, ChevronDown, Lock, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX } from '../icons.jsx';
 import { CS } from '../hooks/useCapture.js';
 import { CAM } from '../hooks/useCamera.js';
 import { playClick } from '../utils/sounds.js';

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { playClick } from '../utils/sounds.js';
+import { ArrowRight, ChevronLeft, ChevronRight, RotateCcw } from '../icons.jsx';
 import './camera.css';
 import './editor.css';
 
@@ -27,7 +28,7 @@ export default function SessionGallery({ photoUrls, onReorder, onRetake, onConti
           </div>
           <button type="button" className="pb-btn pb-btn--primary" onClick={() => { playClick(soundEnabled); onContinue(); }}>
             Edit strip
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            <ArrowRight size={18} aria-hidden="true" />
           </button>
         </header>
 
@@ -46,14 +47,14 @@ export default function SessionGallery({ photoUrls, onReorder, onRetake, onConti
               </div>
               <div className="rv-bar">
                 <button type="button" className="rv-ic" disabled={i === 0} aria-label={`Move shot ${i + 1} earlier`} onClick={() => move(i, i - 1)}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
+                  <ChevronLeft size={18} aria-hidden="true" />
                 </button>
                 <button type="button" className="rv-retake" aria-label={`Retake shot ${i + 1}`} onClick={() => { playClick(soundEnabled); onRetake(i); }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6" /></svg>
+                  <RotateCcw size={16} aria-hidden="true" />
                   <span>Retake</span>
                 </button>
                 <button type="button" className="rv-ic" disabled={i === photoUrls.length - 1} aria-label={`Move shot ${i + 1} later`} onClick={() => move(i, i + 1)}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+                  <ChevronRight size={18} aria-hidden="true" />
                 </button>
               </div>
             </li>

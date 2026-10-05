@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from '../icons.jsx';
 import './camera.css';
 
 export const STEP_TITLES = ['Camera Settings', 'Photobooth', 'Review', 'Final Output'];

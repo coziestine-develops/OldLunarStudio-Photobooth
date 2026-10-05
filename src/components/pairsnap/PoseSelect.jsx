@@ -1,6 +1,6 @@
 /** PairSnap step 2 — choose exactly four pose references. */
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { ArrowRight, Check, LayoutGrid, User, Users, UsersRound } from 'lucide-react';
+import { ArrowRight, Check, LayoutGrid, User, Users, UsersRound } from '../../icons.jsx';
 import { POSES, POSE_CATEGORIES, poseCounts } from '../../data/poses.js';
 
 const CAT_ICONS = { all: LayoutGrid, solo: User, duo: Users, group: UsersRound };
@@ -30,6 +30,7 @@ export default function PoseSelect({ selectedIds, onChange, total = 4, onContinu
       <div className="ps-sel-head">
         <h2>Choose your {total} references</h2>
         <p>Pick the poses you want to recreate together. They’ll appear in the order you choose.</p>
+        <p className="ps-sel-sub">Photos aren’t mine — credits to the original owners.</p>
       </div>
 
       <div className="ps-cats" role="tablist" aria-label="Pose categories">
@@ -66,12 +67,14 @@ export default function PoseSelect({ selectedIds, onChange, total = 4, onContinu
         </ul>
       )}
 
-      <p className={`ps-note ${note ? 'is-on' : ''}`} role="status" aria-live="polite">{note}</p>
+      <p className="ps-credit">
+        Reference photos are for pose inspiration only. I don’t own them — all credit goes to the original creators and owners. If you’re the owner and want a photo removed, please get in touch.
+      </p>
 
       <div className="ps-bar" role="region" aria-label="Selected references">
+        <p className={`ps-note ${note ? 'is-on' : ''}`} role="status" aria-live="polite">{note}</p>
         <span className="ps-bar-k">Selected</span>
         <span className="ps-bar-count"><b>{selectedIds.length}</b> of {total}</span>
-        <button type="button" className={`ps-bar-clear ${selectedIds.length ? '' : 'is-hidden'}`} disabled={!selectedIds.length} tabIndex={selectedIds.length ? 0 : -1} onClick={() => onChange([])}>Clear</button>
         <div className="ps-bar-slots">
           {Array.from({ length: total }).map((_, i) => {
             const p = byId[selectedIds[i]];

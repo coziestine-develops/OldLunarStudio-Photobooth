@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import {
   Calendar, Camera, ChevronDown, Crown, Download, Frame, Heart, Lock, Moon, Palette, Printer, Share2, Sparkles, Star, Trash2, Type,
-} from 'lucide-react';
+} from '../icons.jsx';
 import { FILTERS } from '../utils/filters.js';
 import { compositeExport, loadImg, STRIP_THEMES, DATE_FORMATS } from '../utils/export.js';
 import { downloadBlob, pngFilename } from '../utils/canvas.js';
@@ -58,6 +58,10 @@ const ADJUSTS = [
   { key: 'saturation', label: 'Saturation', min: 0,  max: 200 },
   { key: 'grain',      label: 'Grain',      min: 0,  max: 60 },
 ];
+/* Layout sliders are shown in % of the strip width (600 px at 1×). The editor still stores px, so presets and export are unchanged. */
+const STRIP_W = 600;
+const toPct = px => Math.round(((px ?? 0) / STRIP_W) * 1000) / 10;
+const toPx  = pct => Math.round((pct / 100) * STRIP_W);
 const POS = [{ id: 'top', label: 'Top' }, { id: 'bottom', label: 'Bottom' }];
 const SIZES = [{ id: 'sm', label: 'Small' }, { id: 'md', label: 'Medium' }, { id: 'lg', label: 'Large' }];
 const dateLabel = id => DATE_FORMATS.find(f => f.id === id)?.label ?? '';
@@ -67,11 +71,11 @@ function Switch({ on, onChange, label }) {
   return <button type="button" role="switch" aria-checked={on} aria-label={label} className={`pb-sw ${on ? 'is-on' : ''}`} onClick={onChange} />;
 }
 
-function Slider({ label, value, min, max, onChange, suffix = '' }) {
+function Slider({ label, value, min, max, onChange, suffix = '', step = 1 }) {
   return (
     <div className="fo-slider">
       <label>{label}<b>{value}{suffix}</b></label>
-      <input type="range" min={min} max={max} value={value} aria-label={label}
+      <input type="range" min={min} max={max} step={step} value={value} aria-label={label}
              style={{ '--fill': `${((value - min) / (max - min)) * 100}%` }}
              onChange={e => onChange(Number(e.target.value))} />
     </div>
@@ -178,12 +182,12 @@ export default function PhotoEditor({
     showNumbers: es.showNumbers,
   }), [filterId, intensity, adjustments, es, lockedWatermark, refs]);
 
-  /* Live preview: small render, debounced, stale renders are dropped */
+  /* Live preview: small render, coalesced to one per frame, stale renders are dropped */
   useEffect(() => {
     if (!photoUrls.length) return;
     let cancelled = false;
     setRendering(true);
-    const t = setTimeout(async () => {
+    const raf = requestAnimationFrame(async () => {
       try {
         const blob = await compositeExport(photoUrls, { ...buildOpts(), previewWidth: 720 });
         if (cancelled || !blob) return;
@@ -195,8 +199,8 @@ export default function PhotoEditor({
         console.error('Preview failed', e);
         if (!cancelled) flash('Preview could not be updated. Try another setting.', true);
       } finally { if (!cancelled) setRendering(false); }
-    }, 120);
-    return () => { cancelled = true; clearTimeout(t); };
+    });
+    return () => { cancelled = true; cancelAnimationFrame(raf); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoUrls, buildOpts]);
   useEffect(() => () => { if (lastUrl.current) URL.revokeObjectURL(lastUrl.current); clearTimeout(msgTimer.current); }, []);
@@ -246,7 +250,7 @@ export default function PhotoEditor({
       const blob = await makeFinal();
       afterExport(blob);
       const url = URL.createObjectURL(blob);
-      w.document.write(`<!doctype html><title>OldLuna</title><style>@page{margin:8mm}body{margin:0;display:grid;place-items:center}img{max-width:100%;max-height:100vh}</style><img src="${url}" onload="setTimeout(()=>print(),200)">`);
+      w.document.write(`<!doctype html><title>OldLuna</title><style>@page{margin:8mm}body{margin:0;display:grid;place-items:center}img{max-width:100%;max-height:100vh}</style><img src="${url}" onload="print()">`);
       w.document.close();
     }, 'Printing failed. Try downloading instead.');
   };
@@ -355,7 +359,7 @@ export default function PhotoEditor({
 
             <Section id="date" icon={<Calendar size={18} />} title="Date" value={dateLabel(es.dateFormat)} open={open === 'date'} onToggle={toggle('date')}>
               <Field label="Date format"><Dropdown label="Date format" value={es.dateFormat} options={DATE_FORMATS} onChange={v => onStateChange({ dateFormat: v })} /></Field>
-              {!lockedWatermark && <Field label="Position"><Segmented label="Date position" value={es.datePos} options={POS} onChange={v => onStateChange({ datePos: v })} /></Field>}
+              <Field label="Position"><Segmented label="Date position" value={es.datePos} options={POS} onChange={v => onStateChange({ datePos: v })} /></Field>
             </Section>
 
             <Section id="layout" icon={<Frame size={18} />} title="Layout" open={open === 'layout'} onToggle={toggle('layout')}>
@@ -366,10 +370,10 @@ export default function PhotoEditor({
                             onChange={id => { const p = layoutPresets.find(x => x.id === id); if (p) { playClick(soundEnabled); onStateChange({ ...BASE_LAYOUT, ...p.patch, ...(refs.length ? { layout: 'strip' } : {}), stylePreset: 'custom' }); } }} />
                 </Field>
               )}
-              <Slider label="Photo spacing" value={es.spacing} min={0} max={60} suffix="px" onChange={v => edit({ spacing: v })} />
-              <Slider label="Padding" value={es.padding} min={8} max={60} suffix="px" onChange={v => edit({ padding: v })} />
-              <Slider label="Border" value={es.border} min={0} max={24} suffix="px" onChange={v => edit({ border: v })} />
-              <Slider label="Border radius" value={es.radius} min={0} max={40} suffix="px" onChange={v => edit({ radius: v })} />
+              <Slider label="Photo spacing" value={toPct(es.spacing)} min={0}   max={10}  step={0.5} suffix="%" onChange={v => edit({ spacing: toPx(v) })} />
+              <Slider label="Padding"       value={toPct(es.padding)} min={1.5} max={10}  step={0.5} suffix="%" onChange={v => edit({ padding: toPx(v) })} />
+              <Slider label="Border"        value={toPct(es.border)}  min={0}   max={4}   step={0.5} suffix="%" onChange={v => edit({ border: toPx(v) })} />
+              <Slider label="Border radius" value={toPct(es.radius)}  min={0}   max={6.5} step={0.5} suffix="%" onChange={v => edit({ radius: toPx(v) })} />
             </Section>
 
             <Section id="bg" icon={<Palette size={18} />} title="Background" value={bgLabel} open={open === 'bg'} onToggle={toggle('bg')}>

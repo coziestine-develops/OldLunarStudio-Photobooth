@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Moon, Users, ArrowRight, Film, WandSparkles, LayoutGrid, QrCode } from '../icons.jsx';
 import { playClick } from '../utils/sounds.js';
 import { FILTERS } from '../utils/filters.js';
 import { Button, Section, Card, Icon } from './landing/ui.jsx';
@@ -19,18 +20,18 @@ function useFadeUp() {
 
 /* ── Content ── */
 const STEPS = [
-  { icon: 'camera',   title: 'Set up camera',   desc: <>Allow access and pick your camera.</> },
-  { icon: 'sliders',  title: 'Pick a filter',   desc: <>Choose one of 8 filters and set how strong it looks.</> },
-  { icon: 'timer',    title: 'Smile',           desc: <>Hit start. A 5-second countdown, then 4 shots fire one by one.</> },
-  { icon: 'download', title: 'Download',        desc: <>Edit, add a frame and a caption, then save your strip as a PNG.</> },
+  { icon: 'camera',   title: 'Set up camera',  desc: <>Allow access and pick your camera.</> },
+  { icon: 'timer',    title: 'Smile',          desc: <>Hit start. A 5-second countdown, then 4 shots fire one by one.</> },
+  { icon: 'images',   title: 'Review',         desc: <>Reorder your shots with the arrows or drag, and retake any you don’t love.</> },
+  { icon: 'download', title: 'Final output',   desc: <>Pick a filter, frame, background, text and stickers, then download, share or print.</> },
 ];
 
 const FAQ_ITEMS = [
-  { q: 'How does the photobooth work?', a: 'Choose your setup, get ready, and let the countdown begin. The photobooth captures your photos automatically and puts them together into a photo strip.' },
-  { q: 'Can I take photos with my friends?', a: 'Absolutely! Grab your friends, family, or anyone you want in the frame. The more, the merrier.' },
-  { q: 'Can I retake my photos?', a: 'Yes. If you do not like a shot, you can start another session and try again until you get the perfect set.' },
-  { q: 'Can I download my photo strip?', a: 'Yes! Once your session is complete, you can save your finished photo strip directly to your device.' },
-  { q: 'Do I need an app?', a: 'No app, no complicated setup. Just open the photobooth in your browser, allow camera access, and start posing.' },
+  { q: 'How does the photobooth work?', a: 'Choose your setup, get ready, and let the countdown begin. The photobooth captures your photos automatically, then lets you review them and style your photo strip.' },
+  { q: 'Can I take photos with my friends?', a: 'Absolutely! Grab your friends, family, or anyone you want in the frame. Or try PairSnap, where two people match four poses together.' },
+  { q: 'Can I retake my photos?', a: 'Yes. On the review screen you can retake any single shot, or start another session and try again until you get the perfect set.' },
+  { q: 'What can I customize?', a: 'Pick one of 8 filters, then fine-tune brightness, contrast, saturation and grain. Choose a frame, background color and pattern, add a name, caption, date and stickers, and adjust spacing, padding, border and corners.' },
+  { q: 'Can I download my photo strip?', a: 'Yes! In the final output you can save your finished strip as a high-resolution PNG, share it, or print it straight from your device.' },
 ];
 
 
@@ -85,12 +86,13 @@ function StripFan() {
   );
 }
 
-/* ── Feature card ── */
-function Feature({ icon, title, size = 'sm', children, extra }) {
+/* ── Feature card (pass `soon` to show the "Coming soon" badge) ── */
+function Feature({ icon, title, size = 'sm', children, extra, soon = false }) {
   const iconNode = typeof icon === 'string' ? <Icon name={icon} size={22} /> : icon;
 
   return (
-    <div className={`lp-feat lp-feat--${size} fade-up`}>
+    <div className={`lp-feat lp-feat--${size}${soon ? ' lp-feat--soon' : ''} fade-up`}>
+      {soon && <span className="lp-soon-badge">Coming soon</span>}
       <span className="lp-feat-icon">{iconNode}</span>
       <h3 className="lp-feat-title">{title}</h3>
       <p className="lp-feat-desc">{children}</p>
@@ -126,7 +128,7 @@ const Chips = ({ items, value, onChange, label }) => (
   </div>
 );
 
-const B_DEFAULT = { frame: 'thin', color: 'pink', caption: 'My Caption', showDate: true };
+const B_DEFAULT = { frame: 'thin', color: 'pink', caption: '', showDate: true };
 const BRAND = 'OLDLUNAR STUDIO';
 
 /** Controlled: LandingPage owns the design so the Share button and the camera flow can use it. */
@@ -162,8 +164,24 @@ function StripBuilder({ design, onChange, onStart }) {
           </div>
         </div>
         <div>
-          <p className="lp-group-label">Caption</p>
-          <input id="lp-caption" className="lp-input" value={caption} maxLength={24} onChange={e => setCaption(e.target.value)} placeholder="Add a caption…" aria-label="Caption" autoComplete="off" />
+          <div className="lp-caption-group">
+            <label htmlFor="lp-caption" className="lp-group-label">
+              Caption
+            </label>
+
+            <input
+              id="lp-caption"
+              name="caption"
+              type="text"
+              className="lp-input"
+              value={caption ?? ""}
+              maxLength={24}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Add a caption…"
+              aria-label="Caption"
+              autoComplete="off"
+            />
+          </div>
         </div>
         <div>
           <button type="button" role="switch" aria-checked={showDate} className={`lp-chip ${showDate ? 'is-active' : ''}`} onClick={() => setShowDate(v => !v)}>
@@ -183,7 +201,7 @@ function StripBuilder({ design, onChange, onStart }) {
           </div>
           <div className="lp-sheet-meta">
             <p className="lp-sheet-brand">{BRAND}</p>
-            {caption.trim() && <p className="lp-sheet-cap">{caption}</p>}
+            {(caption ?? '').trim() && <p className="lp-sheet-cap">{caption}</p>}
             {showDate && <p className="lp-sheet-date">{date}</p>}
           </div>
         </div>
@@ -196,10 +214,16 @@ export default function LandingPage({ onStart, onStartPairSnap, soundEnabled }) 
   useFadeUp();
 
   /* Builder design */
-  const [design, setDesign] = useState(B_DEFAULT);
+  const [designBase, setDesignBase] = useState(() => { const { caption: _c, ...rest } = B_DEFAULT; return rest; });
+  const [caption, setCaption] = useState("");
+  const design = { ...designBase, caption };
   const [touched, setTouched] = useState(false);   // only carry the design into the booth if the visitor chose one
 
-  const patchDesign = patch => { setDesign(d => ({ ...d, ...patch })); setTouched(true); };
+  const patchDesign = ({ caption: nextCaption, ...rest }) => {
+    if (nextCaption !== undefined) setCaption(nextCaption ?? "");
+    if (Object.keys(rest).length) setDesignBase(d => ({ ...d, ...rest }));
+    setTouched(true);
+  };
   const currentDesign = () => builderToDesign(design);
 
   const handleStart = () => { playClick(soundEnabled); onStart(touched ? currentDesign() : null); };
@@ -220,7 +244,7 @@ export default function LandingPage({ onStart, onStartPairSnap, soundEnabled }) 
     <div className="lp">
       <header className="lp-top">
         <div className="lp-container lp-top-in">
-        <span className="lp-wordmark"><i className="fa-solid fa-moon" aria-hidden="true"></i><span>Old<span className="lp-luna">Lunar</span><span style={{ color: "#C9A66B" }}> Studio</span></span></span>
+        <span className="lp-wordmark"><Moon size={18} aria-hidden="true" /><span>Old<span className="lp-luna">Lunar</span><span style={{ color: "#C9A66B" }}> Studio</span></span></span>
         </div>
       </header>
       <main>
@@ -229,18 +253,18 @@ export default function LandingPage({ onStart, onStartPairSnap, soundEnabled }) 
           <div className="lp-container lp-hero-inner">
             <div className="lp-hero-text">
               <h1 className="lp-h1">Memories made into <span className="lp-hl-title">photo strips.</span></h1>
-              <p className="lp-lead">Take four photos, choose your filter and frame, then download your high-resolution strip.</p>
+              <p className="lp-lead">Take four photos, then make the strip yours with filters, frames, backgrounds, stickers and text. Download, share or print it in high resolution.</p>
               <div className="lp-cta-group">
                 <Button variant="primary" icon="camera" className="lp-btn--lg" onClick={handleStart}>Start photobooth</Button>
               </div>
               {onStartPairSnap && (
                 <button type="button" className="lp-ps-card" onClick={() => { playClick(soundEnabled); onStartPairSnap(); }}>
-                  <span className="lp-ps-ic" aria-hidden="true"><i className="fa-solid fa-user-group"></i></span>
+                  <span className="lp-ps-ic" aria-hidden="true"><Users size={20} aria-hidden="true" /></span>
                   <span className="lp-ps-tx">
                     <strong>PairSnap <em>NEW</em></strong>
                     <small>Two people. Four poses. Memories forever.</small>
                   </span>
-                  <i className="fa-solid fa-arrow-right lp-ps-go" aria-hidden="true"></i>
+                  <ArrowRight className="lp-ps-go" size={18} aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -257,17 +281,23 @@ export default function LandingPage({ onStart, onStartPairSnap, soundEnabled }) 
           </div>
         </Section>
         <Section id="features" title={<><span>All Features</span> <span className="lp-hl-title">included</span></>}
-          subtitle="Everything you need for the perfect photo strip.">
+          subtitle="Everything you need for the perfect photo strip, plus a few things on the way.">
           <div className="lp-bento">
             <Feature size="xl" icon="filter" title="8 filters" extra={swatches}>Switch looks anytime, with 0–100% intensity. Skin tones and details stay true.</Feature>
-            <Feature icon="layout" title="Classic photo strip">Four frames, stacked in one tall strip.</Feature>
+            <Feature icon="layout" title="Classic photo strip">Four frames, stacked in one tall strip. Fine-tune spacing, padding, border and corners.</Feature>
             <Feature icon="timer" title="5-second timer">Plenty of time to strike a pose.</Feature>
             <Feature icon="wand" title="Photo editor">Tune filter intensity, brightness, contrast, saturation and grain.</Feature>
-            <Feature icon="frame" title="6 frame styles">Thin, thick, rounded, film and more.</Feature>
-            <Feature icon="sticker" title="Captions & date">Add your name, a message and a date stamp.</Feature>
+            <Feature icon="frame" title="7 frame styles">Classic, minimal, film, vintage, polaroid, rounded or none, on four backgrounds with dots, stripes or grid.</Feature>
+            <Feature icon="sticker" title="Text, date & stickers">Add a name, a caption, a date and stickers. Place text at the top or bottom.</Feature>
             <Feature icon="retake" title="Retake & reorder">Redo any shot, drag photos into order.</Feature>
             <Feature icon="camera" title="Full HD camera">Pick your camera and shoot in 1920×1080.</Feature>
-            <Feature icon="image" title="High-res PNG">Save your finished strip in one click.</Feature>
+            <Feature icon="image" title="Download, share or print">Save a high-res PNG, share it, or print it in one click.</Feature>
+
+          {/* ── Coming soon ── */}
+          <Feature soon icon={<Film size={22} aria-hidden="true" />} title="Animated GIF">Your strip, in motion. Four shots become a looping GIF, ready to post anywhere.</Feature>
+          <Feature soon icon={<WandSparkles size={22} aria-hidden="true" />} title="PhotoPop Presets">One tap, full vibe. Pick a preset, take your photos, and OldLunar Studio styles your strip for you.</Feature>
+          <Feature soon icon={<LayoutGrid size={22} aria-hidden="true" />} title="More layouts">Beyond the classic strip. Try grid, postcard and polaroid layouts.</Feature>
+          <Feature soon icon={<QrCode size={22} aria-hidden="true" />} title="Share by link">Send it in a tap. Get a link or QR code, with no download needed.</Feature>
           </div>
         </Section>
         <Section id="builder" title={<><span>Personalize your</span> <span className="lp-hl-title">strip</span></>}
@@ -309,10 +339,10 @@ export default function LandingPage({ onStart, onStartPairSnap, soundEnabled }) 
         <div className="lp-container lp-footer-grid">
           <div className="lp-footer-brand">
             <span className="lp-footer-logo">
-              <i className="fa-solid fa-moon" aria-hidden="true"></i>
+              <Moon size={18} aria-hidden="true" />
               <span>Old<span className="lp-luna">Lunar</span><span style={{ color: "#C9A66B" }}> Studio</span></span>
             </span>
-            <span className="lp-footer-tag">✦ Where every moment becomes timeless.</span>
+            <span className="lp-footer-tag">✦ Where little moments become forever.</span>
           </div>
           <div className="lp-footer-meta">
           <span>Designed &amp; built by <strong style={{ color: '#C8C8C8' }}>coziestine develops</strong></span>  

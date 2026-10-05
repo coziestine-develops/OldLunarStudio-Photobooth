@@ -34,8 +34,29 @@ export function grabFrame(videoEl) {
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
+  if (videoEl.dataset?.mirror === '1') { ctx.translate(w, 0); ctx.scale(-1, 1); }   // saved photo matches the mirrored preview
   ctx.drawImage(videoEl, 0, 0, w, h);
   return canvas;
+}
+
+/**
+ * Instant on-screen stand-in for a just-grabbed frame. Synchronous (a few ms): downscale + JPEG data URL.
+ * Shown the moment the shutter fires; the full-resolution PNG replaces it silently once encoded.
+ */
+export function previewURL(canvas, maxW = 960) {
+  const ratio = Math.min(1, maxW / canvas.width);
+  const w = Math.max(1, Math.round(canvas.width * ratio)), h = Math.max(1, Math.round(canvas.height * ratio));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(canvas, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+
+/** Decode an image off-screen so swapping it into an <img> never flashes blank. */
+export function preDecode(url) {
+  const img = new Image();
+  img.src = url;
+  return (img.decode ? img.decode() : Promise.resolve()).catch(() => {});
 }
 
 export function canvasToBlob(canvas) {

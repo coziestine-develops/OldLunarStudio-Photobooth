@@ -11,30 +11,278 @@
  *   description optional hint shown under the title on the camera screen
  *   tags        optional
  */
-const img = name => `${import.meta.env.BASE_URL}poses/${name}`;
+
+const img = (name) => `${import.meta.env.BASE_URL}poses/${name}`;
 
 export const POSE_CATEGORIES = [
-  { id: 'all',   label: 'All',   icon: 'fa-solid fa-star' },
-  { id: 'solo',  label: 'Solo',  icon: 'fa-solid fa-user' },
-  { id: 'duo',   label: 'Duo',   icon: 'fa-solid fa-user-group' },
-  { id: 'group', label: 'Group', icon: 'fa-solid fa-users' },
+  { id: 'all', label: 'All' },
+  { id: 'solo', label: 'Solo' },
+  { id: 'duo', label: 'Duo' },
+  { id: 'group', label: 'Group' },
 ];
 
 export const POSES = [
-  { id: 'duo-arm-rest',   title: 'Arm Rest Selfie',  image: img('pose4.jpg'), category: 'duo',
-    description: 'One of you stretches out the selfie arm, the other rests an arm on their head.', tags: ['selfie', 'playful'] },
-  { id: 'duo-cheek-hug',  title: 'Cheek Hug',        image: img('pose3.jpg'), category: 'duo',
-    description: 'Hug from the side and squish cheeks together, big grin.', tags: ['hug', 'cute'] },
-  { id: 'duo-surprise',   title: 'Surprise Selfie',  image: img('pose2.jpg'), category: 'duo',
-    description: 'Lean in close with wide, surprised eyes and open mouths.', tags: ['funny face', 'selfie'] },
-  { id: 'duo-classic',    title: 'Classic Couple',   image: img('pose1.jpg'), category: 'duo',
-    description: 'Shoulder to shoulder, heads tilted together, easy smiles.', tags: ['classic', 'smile'] },
+  /** DUO */
+  {
+    id: 'duo-arm-rest',
+    image: img('pose4.jpg'),
+    category: 'duo',
+    tags: ['selfie', 'playful'],
+  },
+  {
+    id: 'duo-cheek-hug',
+    image: img('pose3.jpg'),
+    category: 'duo',
+    tags: ['hug', 'cute'],
+  },
+  {
+    id: 'duo-surprise',
+    image: img('pose2.jpg'),
+    category: 'duo',
+    tags: ['funny face', 'selfie'],
+  },
+  {
+    id: 'duo-classic',
+    image: img('pose1.jpg'),
+    category: 'duo',
+    tags: ['classic', 'smile'],
+  },
+
+  {
+    id: 'spyxfamily-arm-rest',
+    image: img('spyxfamily0.jpg'),
+    category: 'duo',
+    tags: ['selfie', 'playful'],
+  },
+  {
+    id: 'spyxfamily-cheek-hug',
+    image: img('spyxfamily1.jpg'),
+    category: 'duo',
+    tags: ['hug', 'cute'],
+  },
+  {
+    id: 'spyxfamily-surprise',
+    image: img('spyxfamily2.jpg'),
+    category: 'duo',
+    tags: ['funny face', 'selfie'],
+  },
+  {
+    id: 'spyxfamily-classic',
+    image: img('spyxfamily3.jpg'),
+    category: 'duo',
+    tags: ['classic', 'smile'],
+  },
+
+  {
+    id: 'kitagawa-gojo-arm-rest',
+    image: img('kitagawa&gojo0.jpg'),
+    category: 'duo',
+    tags: ['selfie', 'playful'],
+  },
+  {
+    id: 'kitagawa-gojo-cheek-hug',
+    image: img('kitagawa&gojo1.jpg'),
+    category: 'duo',
+    tags: ['hug', 'cute'],
+  },
+  {
+    id: 'kitagawa-gojo-surprise',
+    image: img('kitagawa&gojo2.jpg'),
+    category: 'duo',
+    tags: ['funny face', 'selfie'],
+  },
+  {
+    id: 'kitagawa-gojo-classic',
+    image: img('kitagawa&gojo3.jpg'),
+    category: 'duo',
+    tags: ['classic', 'smile'],
+  },
+
+  {
+    id: 'spiderman-arm-rest',
+    image: img('spiderman0.jpg'),
+    category: 'duo',
+    tags: ['selfie', 'playful'],
+  },
+  {
+    id: 'spiderman-cheek-hug',
+    image: img('spiderman1.jpg'),
+    category: 'duo',
+    tags: ['hug', 'cute'],
+  },
+  {
+    id: 'spiderman-surprise',
+    image: img('spiderman2.jpg'),
+    category: 'duo',
+    tags: ['funny face', 'selfie'],
+  },
+  {
+    id: 'spiderman-classic',
+    image: img('spiderman3.jpg'),
+    category: 'duo',
+    tags: ['classic', 'smile'],
+  },
+
+  {
+    id: 'monkey-arm-rest',
+    image: img('monkey0.jpg'),
+    category: 'duo',
+    tags: ['selfie', 'playful'],
+  },
+  {
+    id: 'monkey-cheek-hug',
+    image: img('monkey1.jpg'),
+    category: 'duo',
+    tags: ['hug', 'cute'],
+  },
+  {
+    id: 'monkey-surprise',
+    image: img('monkey2.jpg'),
+    category: 'duo',
+    tags: ['funny face', 'selfie'],
+  },
+  {
+    id: 'monkey-classic',
+    image: img('monkey3.jpg'),
+    category: 'duo',
+    tags: ['classic', 'smile'],
+  },
+
+  /** SOLO */
+  {
+    id: 'solo-0',
+    image: img('solo0.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-1',
+    image: img('solo1.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-2',
+    image: img('solo2.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-3',
+    image: img('solo3.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-4',
+    image: img('solo4.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-5',
+    image: img('solo5.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-6',
+    image: img('solo6.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-7',
+    image: img('solo7.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-8',
+    image: img('solo8.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-9',
+    image: img('solo9.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-10',
+    image: img('solo10.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+  {
+    id: 'solo-11',
+    image: img('solo11.jpg'),
+    category: 'solo',
+    tags: ['funny', 'meme', 'philippines'],
+  },
+
+  /** GROUP */
+  {
+    id: 'group-0',
+    image: img('group0.jpg'),
+    category: 'group',
+    tags: ['group', 'funny', 'family', 'love'],
+  },
+  {
+    id: 'group-1',
+    image: img('group1.jpg'),
+    category: 'group',
+    tags: ['group', 'funny', 'family', 'love'],
+  },
+  {
+    id: 'group-2',
+    image: img('group2.jpg'),
+    category: 'group',
+    tags: ['group', 'funny', 'family', 'love'],
+  },
+  {
+    id: 'group-3',
+    image: img('group3.jpg'),
+    category: 'group',
+    tags: ['group', 'funny', 'family', 'love'],
+  },
+  {
+    id: 'group-4',
+    image: img('group4.jpg'),
+    category: 'group',
+    tags: ['group', 'funny', 'family', 'love'],
+  },
+  {
+    id: 'group-5',
+    image: img('group5.jpg'),
+    category: 'group',
+    tags: ['group', 'funny', 'family', 'love'],
+  },
+  {
+    id: 'group-6',
+    image: img('group6.jpg'),
+    category: 'group',
+    tags: ['group', 'funny', 'family', 'love'],
+  },
+  {
+    id: 'group-7',
+    image: img('group7.jpg'),
+    category: 'group',
+    tags: ['group', 'funny', 'family', 'love'],
+  },
 ];
 
 export const poseCounts = (poses = POSES) => {
   const counts = { all: poses.length };
-  for (const p of poses) counts[p.category] = (counts[p.category] ?? 0) + 1;
+
+  for (const p of poses) {
+    counts[p.category] = (counts[p.category] ?? 0) + 1;
+  }
+
   return counts;
 };
 
-export const POSE_MAP = Object.fromEntries(POSES.map(p => [p.id, p]));
+export const POSE_MAP = Object.fromEntries(
+  POSES.map((p) => [p.id, p])
+);

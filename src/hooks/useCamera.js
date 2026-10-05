@@ -158,6 +158,15 @@ export function useCamera() {
 
   const toggleMirror = useCallback(() => setMirror(v => !v), []);
 
+  // Phones/tablets: the front camera is shown (and saved) mirrored, like a real mirror / selfie view.
+  // Desktop webcams are left untouched. The flag lives on the <video> so CSS and grabFrame() both read it.
+  const isTouch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+  const mirrorActive = mirror && isTouch && !deviceId.startsWith?.('__rear');
+  useEffect(() => {
+    const v = videoRef.current;
+    if (v) v.dataset.mirror = mirrorActive ? '1' : '0';
+  });
+
   // Re-attach only if the <video> got a different/empty source (e.g. after a screen change).
   // Must NOT touch srcObject when it is already correct: setting it again restarts playback.
   useEffect(() => {
@@ -182,7 +191,7 @@ export function useCamera() {
   useEffect(() => () => releaseStream(), []);
 
   return {
-    videoRef, state, error, mirror, mirrorActive: mirror,
+    videoRef, state, error, mirror, mirrorActive,
     devices, deviceId, resolution,
     request, stop, toggleMirror, selectDevice, reattach,
     isReady: state === CAM.GRANTED,

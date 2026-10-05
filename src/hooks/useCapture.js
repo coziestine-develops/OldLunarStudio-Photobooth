@@ -5,12 +5,14 @@
  *   countdown 5 → 4 → 3 → 2 → 1 → the frame is grabbed in the SAME tick the countdown ends.
  *   - There is no timeout, flash wait or "next video frame" wait between "0" and the grab.
  *   - The countdown is timestamp-based (one deadline per shot), so it does not drift.
- *   - Encoding the PNG, the flash, and UI updates all happen AFTER the frame is grabbed.
+ *   - The captured photo appears on screen in the SAME tick (instant JPEG preview of the grabbed frame).
+ *   - The full-quality PNG is encoded in the background and swapped in seamlessly (never blocks a countdown).
+ *   - The flash and sounds also happen AFTER the frame is grabbed.
  *   - The only pause (PAUSE_BETWEEN_SHOTS_MS) sits between "photo stored" and the NEXT countdown.
  *   - The camera is never restarted between shots.
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { grabFrame, canvasToBlob, isVideoReady, waitForFrame } from '../utils/canvas.js';
+import { grabFrame, canvasToBlob, previewURL, preDecode, isVideoReady, waitForFrame } from '../utils/canvas.js';
 import { playBeep, playShutter, playSuccess } from '../utils/sounds.js';
 
 export const CS = { IDLE:'idle', COUNTDOWN:'countdown', FLASH:'flash', PROCESSING:'processing', DONE:'done' };
@@ -70,8 +72,8 @@ export function useCapture(videoRef) {
   }, [wait]);
 
   /**
-   * Grab the frame NOW (synchronous), then do everything else.
-   * Returns [Blob, objectURL].
+   * Grab the frame NOW (synchronous) and return it with an instant preview URL.
+   * Nothing here awaits encoding — the caller shows the preview immediately.
    */
   const captureNow = useCallback(async (soundEnabled) => {
     const video = videoRef.current;
@@ -80,9 +82,21 @@ export function useCapture(videoRef) {
     catch { await waitForFrame(video, 1500); frame = grabFrame(video); } // only if the stream stalled
     // ── frame is secured; nothing below can delay or alter it ──
     setCS(CS.FLASH); setCountdown(null); flash(); playShutter(soundEnabled);
-    const blob = await canvasToBlob(frame);
-    return [blob, URL.createObjectURL(blob)];
+    return { frame, preview: previewURL(frame) };
   }, [videoRef, flash]);
+
+  /** Background: encode the full-quality PNG, pre-decode it, and swap it in for the preview. */
+  const finalizeShot = useCallback(async (frame, preview) => {
+    const blob = await canvasToBlob(frame);
+    const url = URL.createObjectURL(blob);
+    await preDecode(url);
+    const idx = urlsRef.current.indexOf(preview);
+    if (idx < 0) { URL.revokeObjectURL(url); return; } // reset() already discarded this slot
+    const nb = [...photosRef.current]; nb[idx] = blob;
+    const nu = [...urlsRef.current];   nu[idx] = url;
+    photosRef.current = nb; urlsRef.current = nu;
+    setPhotos(nb); setUrls(nu);
+  }, []);
 
   /**
    * Start a full capture session or retake a single slot.
@@ -111,8 +125,7 @@ export function useCapture(videoRef) {
         setPhotos([]); setUrls([]); setShot(0);
       }
 
-      const collectedBlobs = [];
-      const collectedUrls  = [];
+      const pending = [];   // background PNG encodes
 
       for (let i=startAt; i<slots; i++) {
         if (!live()) break;
@@ -123,20 +136,22 @@ export function useCapture(videoRef) {
         if (!ok || !live()) break;
         if (CAPTURE_DELAY_MS > 0) await wait(CAPTURE_DELAY_MS); // 0 by default: skipped
 
-        const [blob, url] = await captureNow(soundEnabled);
-        if (!live()) { URL.revokeObjectURL(url); break; }
-        if (!blob) throw new Error('empty capture');
+        const { frame, preview } = await captureNow(soundEnabled);
+        if (!live()) break;
 
-        collectedBlobs.push(blob);
-        collectedUrls.push(url);
-        setCS(CS.IDLE);
-
-        if (!isRetake) {
-          photosRef.current = [...photosRef.current, blob];
-          urlsRef.current   = [...urlsRef.current, url];
-          setPhotos(photosRef.current);
-          setUrls(urlsRef.current);
+        // Show the captured photo IMMEDIATELY (preview), then upgrade it to the PNG in the background.
+        if (isRetake) {
+          const old = urlsRef.current[retakeIndex];
+          const nu = [...urlsRef.current]; nu[retakeIndex] = preview;
+          urlsRef.current = nu; setUrls(nu);
+          if (old && old.startsWith('blob:')) setTimeout(() => URL.revokeObjectURL(old), 2000);
+        } else {
+          photosRef.current = [...photosRef.current, null];
+          urlsRef.current   = [...urlsRef.current, preview];
+          setPhotos(photosRef.current); setUrls(urlsRef.current);
         }
+        setCS(CS.IDLE);
+        pending.push(finalizeShot(frame, preview));
 
         // Optional pause: sits between this photo and the NEXT countdown, never before a capture.
         if (i < slots-1 && pauseMs > 0) await wait(pauseMs);
@@ -144,15 +159,9 @@ export function useCapture(videoRef) {
 
       if (!live()) return; // cancelled or reset: cancel()/reset() already restored state
 
-      if (isRetake && collectedBlobs.length > 0) {
-        // Replace ONLY the specified slot; the other photos are untouched
-        const old = urlsRef.current[retakeIndex];
-        const nb = [...photosRef.current]; nb[retakeIndex] = collectedBlobs[0];
-        const nu = [...urlsRef.current];   nu[retakeIndex] = collectedUrls[0];
-        photosRef.current = nb; urlsRef.current = nu;
-        setPhotos(nb); setUrls(nu);
-        if (old) setTimeout(() => URL.revokeObjectURL(old), 2000); // after the UI swapped to the new image
-      }
+      // The editor needs the real PNGs; this normally finished long ago (it ran during the pause / countdown).
+      await Promise.all(pending);
+      if (!live()) return;
 
       playSuccess(soundEnabled);
       setCS(CS.DONE);
@@ -162,7 +171,7 @@ export function useCapture(videoRef) {
     } finally {
       if (live()) { busy.current = false; }
     }
-  }, [runCountdown, captureNow, wait, videoRef]);
+  }, [runCountdown, captureNow, finalizeShot, wait, videoRef]);
 
   const cancel = useCallback(() => {
     runId.current++; busy.current = false; abortWait();

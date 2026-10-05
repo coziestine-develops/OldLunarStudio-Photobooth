@@ -190,16 +190,24 @@ export async function compositeExport(photos, opts = {}) {
   const fs  = FONT_SCALE[fontSize] ?? 1;
 
   /* Footer hierarchy, top to bottom:  BRAND  ·  caption  ·  date.
-     With the permanent watermark the whole footer is one block under the photos, so it can never be split or reordered. */
+     The brand line (permanent watermark, or the Name caption), the caption text and the date each follow the
+     Top / Bottom position settings: Text position moves the brand + caption group, Date position moves the date. */
   const kinds = [];
-  if (watermark) kinds.push({ kind: 'watermark', pos: 'bottom' });
-  if (caption)   kinds.push({ kind: 'caption',   pos: watermark ? 'bottom' : textPos });
-  if (text)      kinds.push({ kind: 'text',      pos: watermark ? 'bottom' : textPos });
-  if (showDate)  kinds.push({ kind: 'date',      pos: watermark ? 'bottom' : datePos });
+  if (watermark) kinds.push({ kind: 'watermark', pos: textPos });
+  if (caption)   kinds.push({ kind: 'caption',   pos: textPos });
+  if (text)      kinds.push({ kind: 'text',      pos: textPos });
+  if (showDate)  kinds.push({ kind: 'date',      pos: datePos });
   const topKinds = kinds.filter(k => k.pos === 'top');
   const botKinds = kinds.filter(k => k.pos !== 'top');
-  const blockH = n => (n ? Math.round((28 + 38 * fs * n) * EXPORT_SCALE) : 0);
-  const TOP_H = blockH(topKinds.length), BOT_H = blockH(botKinds.length);
+  /* Footer lines are stacked tightly: each line is only as tall as its own text, with one small, equal gap between lines.
+     (Previously the block height was split evenly between rows, which left a large empty gap between BRAND, caption and date.) */
+  const UNIT     = Math.round(46 * fs * EXPORT_SCALE);                      // base text unit
+  const LINE_PAD = Math.round(UNIT * 0.06);                                 // gap between footer lines
+  const EDGE_PAD = Math.round(10 * EXPORT_SCALE);                           // space above / below the footer block
+  const sizeOf   = kind => Math.round(UNIT * ({ watermark: 0.46, caption: 0.5, text: 0.42, date: 0.36 }[kind] ?? 0.36));
+  const lineH    = kind => Math.round(sizeOf(kind) * 1.15);
+  const blockH   = list => (list.length ? EDGE_PAD * 2 + list.reduce((n, it) => n + lineH(it.kind), 0) + LINE_PAD * (list.length - 1) : 0);
+  const TOP_H = blockH(topKinds), BOT_H = blockH(botKinds);
 
   const isStrip = paired || layout === 'strip' || count === 1;
   const cols = paired ? 2 : isStrip ? 1 : 2;
@@ -306,39 +314,41 @@ export async function compositeExport(photos, opts = {}) {
     const w = ctx.measureText(txt).width;
     if (w > maxW) ctx.font = `${weight} ${Math.max(10, Math.floor(size * maxW / w))}px 'Poppins',sans-serif`;
   };
-  const drawBlock = (list, y0, h) => {
+  const drawBlock = (list, y0) => {
     if (!list.length) return;
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const rowH = h / list.length, maxW = canvasW - PAD * 2;
-    list.forEach((it, idx) => {
-      const ry = y0 + rowH * (idx + 0.5);
+    const maxW = canvasW - PAD * 2;
+    let y = y0 + EDGE_PAD;
+    list.forEach(it => {
+      const lh = lineH(it.kind), size = sizeOf(it.kind), ry = y + lh / 2;
       if (it.kind === 'watermark') {
         ctx.fillStyle = theme.fg;
-        if ('letterSpacing' in ctx) ctx.letterSpacing = `${Math.round(rowH * 0.03)}px`;
-        fitFont(watermark, 800, Math.round(rowH * 0.46), maxW);
+        if ('letterSpacing' in ctx) ctx.letterSpacing = `${Math.round(size * 0.06)}px`;
+        fitFont(watermark, 800, size, maxW);
         ctx.fillText(watermark, canvasW / 2, ry);
         if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
       } else if (it.kind === 'caption') {
         ctx.fillStyle = theme.fg;
-        fitFont(caption.slice(0, 24), 700, Math.round(rowH * 0.5), maxW);
+        fitFont(caption.slice(0, 24), 700, size, maxW);
         ctx.fillText(caption.slice(0, 24), canvasW / 2, ry);
       } else if (it.kind === 'text') {
         ctx.fillStyle = theme.fg; ctx.globalAlpha = 0.85;
-        fitFont(text.slice(0, 32), 600, Math.round(rowH * 0.42), maxW);
+        fitFont(text.slice(0, 32), 600, size, maxW);
         ctx.fillText(text.slice(0, 32), canvasW / 2, ry);
         ctx.globalAlpha = 1;
       } else {
         ctx.fillStyle = theme.accent;
         const d = formatStripDate(dateFormat);
-        fitFont(d, 600, Math.round(rowH * 0.36), maxW);
+        fitFont(d, 600, size, maxW);
         ctx.fillText(d, canvasW / 2, ry);
       }
+      y += lh + LINE_PAD;
     });
     ctx.restore();
   };
-  drawBlock(topKinds, 0, TOP_H);
-  drawBlock(botKinds, TOP_H + photosH, BOT_H);
+  drawBlock(topKinds, 0);
+  drawBlock(botKinds, TOP_H + photosH);
 
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 }
